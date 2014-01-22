@@ -40,24 +40,23 @@ char buf[BLOCK_SIZE];
 void reader (int fd)
 {
   int bytes_read = 0;
-  while (1) {
-    int z = read (fd, buf, BLOCK_SIZE);
+  int z;
+  do {
+    z = read (fd, buf, BLOCK_SIZE);
     Assert (z != -1);      
-    if (z == 0) break;
     bytes_read += z;
-  } 
+  } while (z != 0);
   Printf (1, "reader process read %d bytes\n", bytes_read);
 }
 
 void writer (int fd)
 {  
   int bytes_wrote = 0;
-  while (1) {
+  do {
     int z = write (fd, buf, BLOCK_SIZE);
     Assert (z != 0);
-    if (bytes_wrote >= N) break;
     bytes_wrote += z;
-  }
+  } while (bytes_wrote < N);
   Printf (1, "writer process wrote %d bytes\n", bytes_wrote);
 }
 
