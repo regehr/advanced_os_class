@@ -10,6 +10,8 @@ int main(void){
   unsigned long msec;
   unsigned long sec; 
   
+  
+
   if(gettime(&msec,&sec)<0){
     printf(1,"Error on gettime");
     exit();
