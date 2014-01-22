@@ -32,36 +32,94 @@ void AssertionFailure(char *exp, char *file, int line)
 #define Assert(exp) if (exp) ; else AssertionFailure( #exp, __FILE__,  __LINE__ ) 
 
 #define BLOCK_SIZE 8192
+unsigned char buf[BLOCK_SIZE];
 
-const int N = 10*1000*1000;
+const int BYTES = 10*1000*1000;
 
-char buf[BLOCK_SIZE];
+#ifdef CHECK
 
-void reader (int fd)
+// do this the cheesy way to avoid makefile hacking
+#include "rand48.c"
+
+struct _rand48_state s;
+
+#endif
+
+static int _read (int fd, unsigned char *buf, int len)
+{
+#ifdef BE_MEAN
+  len = (rand()%len) + 1;
+#endif
+  return read (fd, buf, len);
+}
+
+static int _write (int fd, unsigned char *buf, int len)
+{
+#ifdef BE_MEAN
+  len = (rand()%len) + 1;
+#endif
+  return write (fd, buf, len);
+}
+
+static void reader (int fd)
 {
   int bytes_read = 0;
   int z;
   do {
-    z = read (fd, buf, BLOCK_SIZE);
+    z = _read (fd, buf, BLOCK_SIZE);
     Assert (z != -1);      
     bytes_read += z;
+#ifdef CHECK
+    {
+      int i;
+      for (i=0; i<z; i++) {
+	unsigned char expect = _lrand48(&s);
+#ifdef VERBOSE
+	printf( "read %02x, expected %02x\n", buf[i], expect);
+#endif
+	Assert (buf[i] == expect);
+      }
+    }
+#endif
   } while (z != 0);
   Printf (1, "reader process read %d bytes\n", bytes_read);
 }
 
-void writer (int fd)
+static void writer (int fd)
 {  
   int bytes_wrote = 0;
+  int last_pos = BLOCK_SIZE;
   do {
-    int z = write (fd, buf, BLOCK_SIZE);
+#ifdef CHECK
+    {
+      int i;
+      for (i=0; i<BLOCK_SIZE; i++) {	
+	if (last_pos < BLOCK_SIZE) {
+	  buf[i] = buf[last_pos];
+	  last_pos++;
+	} else {
+	  buf[i] = _lrand48(&s);
+	}
+#ifdef VERBOSE
+	printf( "writing %02x\n", buf[i]);
+#endif
+      }
+    }
+#endif
+    int z = _write (fd, buf, BLOCK_SIZE);
     Assert (z != 0);
+    last_pos = z;
     bytes_wrote += z;
-  } while (bytes_wrote < N);
+  } while (bytes_wrote < BYTES);
   Printf (1, "writer process wrote %d bytes\n", bytes_wrote);
 }
 
 int main (void)
 {
+#ifdef CHECK
+  _srand48(&s, getpid());
+  Printf (1, "running in checked mode\n%s", "");
+#endif
   int pipefd[2];
   int res = pipe (pipefd);
   Assert (res==0);
