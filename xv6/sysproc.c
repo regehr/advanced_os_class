@@ -5,6 +5,8 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "traps.h"
+
 
 int
 sys_fork(void)
@@ -87,4 +89,32 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+int sys_gettime(void)
+{
+  unsigned long *msec;
+  unsigned long *sec;
+  uint ticks1;
+
+  if((argptr(0,(char**)&msec,sizeof(unsigned long)) < 0) || (argptr(1,(char**)&sec,sizeof(unsigned long)) <0)){
+    return -1;
+  }
+  
+  
+  //assert(msec != NULL);
+  //assert(sec != NULL);
+
+  acquire(&tickslock);
+  ticks1 = ticks;
+  release(&tickslock);
+  
+  //ticks occur every 10ms
+  *msec = (ticks1 % 100);
+  *sec = (ticks1/100);
+  
+  return 0;
+  
+
 }
