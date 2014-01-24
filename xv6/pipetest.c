@@ -9,6 +9,18 @@
 #define Printf(x,fmt,...) printf(x,fmt,__VA_ARGS__)
 #define Wait() wait()
 
+unsigned long get_ms (void)
+{
+  unsigned long msec;
+  unsigned long sec; 
+  if(gettime(&msec,&sec)<0){
+    printf(1,"Error on gettime");
+    exit();
+  }
+  long t = (sec * 1000) + msec;
+  return t;
+}
+
 #else /* not __XV6 __ */
 
 #include <stdio.h>
@@ -16,10 +28,19 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #define Exit(x) exit(x)
 #define Printf(x,fmt,...) printf(fmt,__VA_ARGS__)
 #define Wait() wait(NULL)
+
+unsigned long get_ms (void)
+{
+  struct timeval tv;
+  gettimeofday (&tv, NULL);
+  long t = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+  return t;
+}
 
 #endif
 
@@ -34,7 +55,7 @@ void AssertionFailure(char *exp, char *file, int line)
 #define BLOCK_SIZE 8192
 unsigned char buf[BLOCK_SIZE];
 
-const int BYTES = 10*1000*1000;
+const int BYTES = 1000*1000*1000;
 
 #ifdef CHECK
 
@@ -120,6 +141,8 @@ int main (void)
   _srand48(&s, getpid());
   Printf (1, "running in checked mode\n%s", "");
 #endif
+
+  long start = get_ms();
   int pipefd[2];
   int res = pipe (pipefd);
   Assert (res==0);
@@ -131,6 +154,7 @@ int main (void)
     reader(pipefd[0]);
     res = close(pipefd[0]);
     Assert (res == 0);
+    Exit (0);
   } else {
     int res = close(pipefd[0]);
     Assert (res == 0);
@@ -140,5 +164,8 @@ int main (void)
     res = Wait();
     Assert (res != -1);
   }
+  long duration = get_ms() - start;
+  Printf (1, "elapsed time = %d ms\n", (int)duration);
+
   Exit(0);
 }
