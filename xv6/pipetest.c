@@ -1,3 +1,6 @@
+// comment out this line before doing bandwidth tests
+#define CHECK 1
+
 #ifdef __XV6__
 
 #include "types.h"
@@ -68,7 +71,7 @@ struct _rand48_state s;
 
 static int _read (int fd, unsigned char *buf, int len)
 {
-#ifdef BE_MEAN
+#ifdef CHECK
   len = (rand()%len) + 1;
 #endif
   return read (fd, buf, len);
@@ -76,7 +79,7 @@ static int _read (int fd, unsigned char *buf, int len)
 
 static int _write (int fd, unsigned char *buf, int len)
 {
-#ifdef BE_MEAN
+#ifdef CHECK
   len = (rand()%len) + 1;
 #endif
   return write (fd, buf, len);
