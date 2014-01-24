@@ -12,7 +12,7 @@
 #define Printf(x,fmt,...) printf(x,fmt,__VA_ARGS__)
 #define Wait() wait()
 
-unsigned long get_ms (void)
+static unsigned long get_ms (void)
 {
   unsigned long msec;
   unsigned long sec; 
@@ -32,12 +32,13 @@ unsigned long get_ms (void)
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <sys/time.h>
 
 #define Exit(x) exit(x)
 #define Printf(x,fmt,...) printf(fmt,__VA_ARGS__)
 #define Wait() wait(NULL)
 
-unsigned long get_ms (void)
+static unsigned long get_ms (void)
 {
   struct timeval tv;
   gettimeofday (&tv, NULL);
@@ -47,7 +48,7 @@ unsigned long get_ms (void)
 
 #endif
 
-void AssertionFailure(char *exp, char *file, int line)
+static void AssertionFailure(char *exp, char *file, int line)
 {
   Printf (1, "Assertion '%s' failed at line %d of file %s\n", exp, line, file);
   Exit(-1);
@@ -56,31 +57,35 @@ void AssertionFailure(char *exp, char *file, int line)
 #define Assert(exp) if (exp) ; else AssertionFailure( #exp, __FILE__,  __LINE__ ) 
 
 #define BLOCK_SIZE 8192
-unsigned char buf[BLOCK_SIZE];
+static unsigned char buf[BLOCK_SIZE];
 
-const int BYTES = 1000*1000*1000;
+static const int BYTES = 1000*1000*1000;
 
 #ifdef CHECK
 
 // do this the cheesy way to avoid makefile hacking
 #include "rand48.c"
 
-struct _rand48_state s;
+static struct _rand48_state s, s2;
 
 #endif
 
+static int reads, writes;
+
 static int _read (int fd, unsigned char *buf, int len)
 {
+  reads++;
 #ifdef CHECK
-  len = (rand()%len) + 1;
+  len = (_lrand48(&s2)%len) + 1;
 #endif
   return read (fd, buf, len);
 }
 
 static int _write (int fd, unsigned char *buf, int len)
 {
+  writes++;
 #ifdef CHECK
-  len = (rand()%len) + 1;
+  len = (_lrand48(&s2)%len) + 1;
 #endif
   return write (fd, buf, len);
 }
@@ -98,21 +103,20 @@ static void reader (int fd)
       int i;
       for (i=0; i<z; i++) {
 	unsigned char expect = _lrand48(&s);
-#ifdef VERBOSE
-	printf( "read %02x, expected %02x\n", buf[i], expect);
-#endif
 	Assert (buf[i] == expect);
       }
     }
 #endif
   } while (z != 0);
-  Printf (1, "reader process read %d bytes\n", bytes_read);
+  Printf (1, "%d bytes read in %d calls to read()\n", bytes_read, reads);
 }
 
 static void writer (int fd)
 {  
   int bytes_wrote = 0;
+#ifdef CHECK
   int last_pos = BLOCK_SIZE;
+#endif
   do {
 #ifdef CHECK
     {
@@ -124,24 +128,24 @@ static void writer (int fd)
 	} else {
 	  buf[i] = _lrand48(&s);
 	}
-#ifdef VERBOSE
-	printf( "writing %02x\n", buf[i]);
-#endif
       }
     }
 #endif
     int z = _write (fd, buf, BLOCK_SIZE);
     Assert (z != 0);
+#ifdef CHECK
     last_pos = z;
+#endif
     bytes_wrote += z;
   } while (bytes_wrote < BYTES);
-  Printf (1, "writer process wrote %d bytes\n", bytes_wrote);
+  Printf (1, "%d bytes written in %d calls to write()\n", bytes_wrote, writes);
 }
 
 int main (void)
 {
 #ifdef CHECK
   _srand48(&s, getpid());
+  _srand48(&s2, getpid()+77);
   Printf (1, "running in checked mode\n%s", "");
 #endif
 
