@@ -7,7 +7,12 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 512
+// Can't make this much bigger:
+// To close to 4096 or larger, and the program crashes on subsequent calls.
+// (not sure why this is, exactly, but I assume it corresponds to pages being 4096 bytes)
+// I can push it up a bit (say to 3584), but the speed isn't substantially improved when
+// it is an unusual number like that (maybe mod is significantly slower?)
+#define PIPESIZE 3072
 
 struct pipe {
   struct spinlock lock;
@@ -77,29 +82,79 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i;
+    int toWrite;
+    int canWrite = 0;
 
-  acquire(&p->lock);
-  for(i = 0; i < n; i++){
-    while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
-      if(p->readopen == 0 || proc->killed){
-        release(&p->lock);
-        return -1;
-      }
-      wakeup(&p->nread);
-      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+    acquire(&p->lock);
+    for(toWrite = n; toWrite > 0; toWrite -= canWrite){
+        while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
+            if(p->readopen == 0 || proc->killed){
+                release(&p->lock);
+                return -1;
+            }
+            wakeup(&p->nread);
+            sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+        }
+        
+        int i;
+        int space = p->nread + PIPESIZE - p->nwrite;
+        canWrite = (toWrite > space) ? space : toWrite;
+        //cprintf("%d\n", canWrite);
+        for (i = 0; i < canWrite; i++)
+            p->data[p->nwrite++ % PIPESIZE] = addr[n - toWrite + i];
     }
-    p->data[p->nwrite++ % PIPESIZE] = addr[i];
-  }
-  wakeup(&p->nread);  //DOC: pipewrite-wakeup1
-  release(&p->lock);
-  return n;
+    wakeup(&p->nread);  //DOC: pipewrite-wakeup1
+    release(&p->lock);
+    return n;
+  
+  /*
+    int toWrite;
+    int canWrite = 0;
+    cprintf("write before acquire\n");
+    acquire(&p->lock);
+    cprintf("write after acquire\n");
+
+    for (toWrite = n; toWrite > 0; toWrite -= canWrite)
+    {
+        // Pipe full? Sleep until there's space
+        while(p->nwrite == PIPESIZE){  //DOC: pipewrite-full
+            if(p->readopen == 0 || proc->killed){
+                cprintf("a\n");
+                release(&p->lock);
+                cprintf("b\n");
+                return -1;
+            }
+            cprintf("c\n");
+            wakeup(&p->nread);
+            cprintf("d\n");
+            sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+            cprintf("e\n");
+        }
+
+        // Write as much into the buffer as we can
+        canWrite = (toWrite > (PIPESIZE - p->nwrite)) ? PIPESIZE - p->nwrite : toWrite;
+        toWrite -= canWrite;
+        p->nwrite += toWrite;
+        cprintf("f\n");
+        memmove(p->data+p->nwrite, addr+(n-toWrite), canWrite);
+        cprintf("g\n");
+    }
+
+    // We finished, so wake up the reader (in case they're waiting), and release the locks!
+    cprintf("write before release\n");
+    wakeup(&p->nread);
+    release(&p->lock);
+    cprintf("write after release\n");
+
+    return n;
+    */
 }
 
 int
 piperead(struct pipe *p, char *addr, int n)
 {
-  int i;
+  int toRead;
+  int canRead = 0;
 
   acquire(&p->lock);
   while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
@@ -109,12 +164,47 @@ piperead(struct pipe *p, char *addr, int n)
     }
     sleep(&p->nread, &p->lock); //DOC: piperead-sleep
   }
-  for(i = 0; i < n; i++){  //DOC: piperead-copy
+  for(toRead = n; toRead > 0; toRead -= canRead){  //DOC: piperead-copy
     if(p->nread == p->nwrite)
       break;
-    addr[i] = p->data[p->nread++ % PIPESIZE];
+    
+    int i;
+    int written = p->nwrite - p->nread;
+    canRead = (toRead > written) ? written : toRead;
+    for (i = 0; i < canRead; i++)
+        addr[n - toRead + i] = p->data[p->nread++ % PIPESIZE];
   }
   wakeup(&p->nwrite);  //DOC: piperead-wakeup
   release(&p->lock);
-  return i;
+  return n - toRead;
+
+    /*
+    int canRead;
+
+    cprintf("read before acquire\n");
+    acquire(&p->lock);
+    cprintf("read after acquire\n");
+
+    // While empty:
+    while (p->nwrite == 0 && p->writeopen){
+        if (proc->killed){
+            release(&p->lock);
+            return -1;
+        }
+        sleep(&p->nread, &p->lock);
+    }
+    
+    // Read everything we can:
+    canRead = (n > p->nwrite) ? p->nwrite : n;
+    p->nwrite -= canRead;
+    memmove(addr, p->data, canRead);
+
+    // Wakeup writer in case it's waiting, and release the locks!
+    cprintf("read before release\n");
+    wakeup(&p->nwrite);
+    release(&p->lock);
+    cprintf("read after release\n");
+
+    return canRead;
+    */
 }
