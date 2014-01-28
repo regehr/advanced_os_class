@@ -9,6 +9,8 @@
 
 #define PIPESIZE 512
 
+/* Andrew Riley */
+
 struct pipe {
   struct spinlock lock;
   char data[PIPESIZE];
@@ -77,10 +79,10 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i;
+  int i = 0;
 
   acquire(&p->lock);
-  for(i = 0; i < n; i++){
+  /*for(i = 0; i < n; i++){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
@@ -90,7 +92,22 @@ pipewrite(struct pipe *p, char *addr, int n)
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
     p->data[p->nwrite++ % PIPESIZE] = addr[i];
-  }
+  }*/
+
+  do {
+    if(p->readopen == 0 || proc->killed){
+        release(&p->lock);
+        return -1;
+    }
+    else if (p->nwrite != p->nread + PIPESIZE) {
+      wakeup(&p->nread);
+      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+    }
+    else
+      p->data[p->nwrite++ % PIPESIZE] = addr[i++];
+
+  } while (i < n);
+
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
   return n;
