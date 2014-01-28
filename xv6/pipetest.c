@@ -103,7 +103,9 @@ static void reader (int fd)
       int i;
       for (i=0; i<z; i++) {
 	unsigned char expect = _lrand48(&s);
+	//	Printf(1, "i is: %d, expect is: %d: ,is actually: %d\n", i, expect, buf[i]);
 	Assert (buf[i] == expect);
+	
       }
     }
 #endif
