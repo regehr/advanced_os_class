@@ -7,8 +7,11 @@
 #include "file.h"
 #include "spinlock.h"
 
-//#define PIPESIZE 512
-#define PIPESIZE 8192
+#define PIPESIZE 512
+//#define PIPESIZE 1024
+//#define PIPESIZE 2048
+//#define PIPESIZE 4096
+//#define PIPESIZE 8192
 
 struct pipe {
   struct spinlock lock;
@@ -74,6 +77,10 @@ pipeclose(struct pipe *p, int writable)
     release(&p->lock);
 }
 
+#define NORMAL_READ  1
+#define NORMAL_WRITE 1
+
+#if NORMAL_WRITE
 //PAGEBREAK: 40
 int
 pipewrite(struct pipe *p, char *addr, int n)
@@ -96,7 +103,42 @@ pipewrite(struct pipe *p, char *addr, int n)
   release(&p->lock);
   return n;
 }
+#else
+//PAGEBREAK: 40
+int
+pipewrite(struct pipe *p, char *addr, int n)
+{
+  int i;
 
+  acquire(&p->lock);
+  i = 0;
+  while(i < n){
+    while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
+      if(p->readopen == 0 || proc->killed){
+        release(&p->lock);
+        return -1;
+      }
+      wakeup(&p->nread);
+      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+    }
+//    p->data[p->nwrite++ % PIPESIZE] = addr[i++];
+    if(PIPESIZE<=n-i) {
+      memmove(p->data,addr,PIPESIZE);
+      p->nwrite+=PIPESIZE;
+      i+=PIPESIZE;
+    } else {
+      memmove(p->data,addr,n-i);
+      p->nwrite+=n-i;
+      i+=n-i;
+    }
+  }
+  wakeup(&p->nread);  //DOC: pipewrite-wakeup1
+  release(&p->lock);
+  return n;
+}
+#endif
+
+#if NORMAL_READ
 int
 piperead(struct pipe *p, char *addr, int n)
 {
@@ -119,3 +161,30 @@ piperead(struct pipe *p, char *addr, int n)
   release(&p->lock);
   return i;
 }
+#else
+int
+piperead(struct pipe *p, char *addr, int n)
+{
+  int i;
+
+  acquire(&p->lock);
+  while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
+    if(proc->killed){
+      release(&p->lock);
+      return -1;
+    }
+    sleep(&p->nread, &p->lock); //DOC: piperead-sleep
+  }
+  if(p->nwrite - p->nread == PIPESIZE) {
+    memmove(addr, p->data, PIPESIZE);
+    p->nread += PIPESIZE;
+    i += PIPESIZE;
+  } else {
+    memmove(addr, p->data, p->nwrite - p->nread);
+    p->nread = p->nwrite;
+  }
+  wakeup(&p->nwrite);  //DOC: piperead-wakeup
+  release(&p->lock);
+  return i;
+}
+#endif
