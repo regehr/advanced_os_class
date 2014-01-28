@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 512
+#define PIPESIZE 3072 // Made pipesize 6x bigger
 
 struct pipe {
   struct spinlock lock;
@@ -79,14 +79,14 @@ pipewrite(struct pipe *p, char *addr, int n)
 {
   int i;
 
-  acquire(&p->lock);
-  for(i = 0; i < n; i++){
+  acquire(&p->lock); // spins here until the lock is acquired
+  for(i = 0; i < n; i++){ // loops over the bytes being written (addr[0]-addr[n-1])
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
         return -1;
       }
-      wakeup(&p->nread);
+      wakeup(&p->nread); // called when the pipe is full, then sleeps until some of the pipe is empty
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
     p->data[p->nwrite++ % PIPESIZE] = addr[i];
