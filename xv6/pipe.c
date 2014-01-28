@@ -7,15 +7,16 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 512
+#define PIPESIZE 8192
 
 struct pipe {
   struct spinlock lock;
-  char data[PIPESIZE];
+  
   uint nread;     // number of bytes read
   uint nwrite;    // number of bytes written
   int readopen;   // read fd is still open
   int writeopen;  // write fd is still open
+  __attribute__((aligned(64)))char data[PIPESIZE];
 };
 
 int
@@ -80,18 +81,21 @@ pipewrite(struct pipe *p, char *addr, int n)
   int i;
 
   acquire(&p->lock);
-  for(i = 0; i < n; i++){
-    while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
+  for(i = 0; i < n;){
+    while(p->nwrite == p->nread + PIPESIZE){ //DOC: pipewrite-full
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
         return -1;
       }
       wakeup(&p->nread);
-      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+      sleep(&p->nwrite, &p->lock); //DOC: pipewrite-sleep
     }
-    p->data[p->nwrite++ % PIPESIZE] = addr[i];
+    
+    while(p->nwrite < p->nread+PIPESIZE && i<n){
+      p->data[p->nwrite++ % PIPESIZE] = addr[i++];	
+    }
   }
-  wakeup(&p->nread);  //DOC: pipewrite-wakeup1
+  wakeup(&p->nread); //DOC: pipewrite-wakeup1
   release(&p->lock);
   return n;
 }
@@ -99,8 +103,8 @@ pipewrite(struct pipe *p, char *addr, int n)
 int
 piperead(struct pipe *p, char *addr, int n)
 {
-  int i;
-
+  int i=0;
+  int temp =0;
   acquire(&p->lock);
   while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
     if(proc->killed){
@@ -109,11 +113,12 @@ piperead(struct pipe *p, char *addr, int n)
     }
     sleep(&p->nread, &p->lock); //DOC: piperead-sleep
   }
-  for(i = 0; i < n; i++){  //DOC: piperead-copy
-    if(p->nread == p->nwrite)
-      break;
-    addr[i] = p->data[p->nread++ % PIPESIZE];
+  temp = (p->nwrite-p->nread);
+  for(i = 0; i < temp; i++){  //DOC: piperead-copy
+      addr[i] = p->data[p->nread++ % PIPESIZE];   
   }
+ 
+  
   wakeup(&p->nwrite);  //DOC: piperead-wakeup
   release(&p->lock);
   return i;

@@ -59,7 +59,7 @@ static void AssertionFailure(char *exp, char *file, int line)
 #define BLOCK_SIZE 8192
 static unsigned char buf[BLOCK_SIZE];
 
-static const int BYTES = 1000*1000*1000;
+static const int BYTES = 1000*1000*1000;//*1000;
 
 #ifdef CHECK
 

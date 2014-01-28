@@ -111,8 +111,8 @@ int sys_gettime(void)
   release(&tickslock);
   
   //ticks occur every 10ms
-  *msec = (ticks1 % 100);
-  *sec = (ticks1 / 100);
+  *msec = (ticks1 % 20);
+  *sec = (ticks1 / 20);
   
   return 0;
   
