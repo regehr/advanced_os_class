@@ -100,7 +100,7 @@ pipewrite(struct pipe *p, char *addr, int n)
             sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
         }
         
-        int i;
+        //int i;
         int frontSpace, backSpace;
         
         // Write toward end of pipe if we're ahead of the reader:
@@ -110,8 +110,11 @@ pipewrite(struct pipe *p, char *addr, int n)
             canWrite1 = (toWrite > frontSpace) ? frontSpace : toWrite;
             toWrite -= canWrite1;
             p->written += canWrite1;
-            for (i = 0; i < canWrite1; i++)
-                p->data[p->nwrite++] = addr[addrPos++];
+            //for (i = 0; i < canWrite1; i++)
+            //    p->data[p->nwrite++] = addr[addrPos++];
+            memmove(p->data+p->nwrite, addr+addrPos, canWrite1);
+            p->nwrite += canWrite1;
+            addrPos += canWrite1;
         }
         
         // Reset to front if we got to the end of the buffer:
@@ -125,8 +128,11 @@ pipewrite(struct pipe *p, char *addr, int n)
             canWrite2 = (toWrite > backSpace) ? backSpace : toWrite;
             toWrite -= canWrite2;
             p->written += canWrite2;
-            for (i = 0; i < canWrite2; i++)
-                p->data[p->nwrite++] = addr[addrPos++];
+            //for (i = 0; i < canWrite2; i++)
+            //    p->data[p->nwrite++] = addr[addrPos++];
+            memmove(p->data+p->nwrite, addr+addrPos, canWrite2);
+            p->nwrite += canWrite2;
+            addrPos += canWrite2;
         }
     }
 
@@ -159,7 +165,7 @@ piperead(struct pipe *p, char *addr, int n)
     if(p->written == 0)
       break;
     
-    int i;
+    //int i;
     int frontSpace, backSpace;
 
     // Read up to the front of the buffer if we're ahead of the writer:
@@ -169,10 +175,11 @@ piperead(struct pipe *p, char *addr, int n)
         canRead1 = (toRead > frontSpace) ? frontSpace : toRead;
         toRead -= canRead1;
         p->written -= canRead1;
-        for (i = 0; i < canRead1; i++)
-            addr[addrPos++] = p->data[p->nread++];
-        if (!p->writeopen)
-            cprintf("A: %d\n", toRead);
+        //for (i = 0; i < canRead1; i++)
+        //    addr[addrPos++] = p->data[p->nread++];
+        memmove(addr+addrPos, p->data+p->nread, canRead1);
+        addrPos += canRead1;
+        p->nread += canRead1;
     }
 
     // Reset read head if appropriate:
@@ -186,10 +193,11 @@ piperead(struct pipe *p, char *addr, int n)
         canRead2 = (toRead > backSpace) ? backSpace : toRead;
         toRead -= canRead2;
         p->written -= canRead2;
-        for (i = 0; i < canRead2; i++)
-            addr[addrPos++] = p->data[p->nread++];
-        if (!p->writeopen)
-            cprintf("B: %d\n", toRead);
+        //for (i = 0; i < canRead2; i++)
+        //    addr[addrPos++] = p->data[p->nread++];
+        memmove(addr+addrPos, p->data+p->nread, canRead2);
+        addrPos += canRead2;
+        p->nread += canRead2;
     }
   }
  

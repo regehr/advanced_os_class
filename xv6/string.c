@@ -31,7 +31,6 @@ memcmp(const void *v1, const void *v2, uint n)
 void*
 memmove(void *dst, const void *src, uint n)
 {
-  /*
   const char *s;
   char *d;
 
@@ -47,8 +46,8 @@ memmove(void *dst, const void *src, uint n)
       *d++ = *s++;
 
   return dst;
-  */
 
+    /*
     const char* b_s = src;
     char* b_d = dst;
     const int* i_s;
@@ -58,6 +57,8 @@ memmove(void *dst, const void *src, uint n)
         goto backward;
 
 //forward:
+    cprintf("forward\n");
+
     // Write until src is word aligned:
     while (((int)b_s & 0x3) > 0)
     {
@@ -85,6 +86,8 @@ memmove(void *dst, const void *src, uint n)
     goto end;
 
 backward:
+    cprintf("backward\n");
+
     // TODO: optimize backwards case
     b_s += n;
     b_d += n;
@@ -93,6 +96,7 @@ backward:
 
 end:
     return dst;
+    */
 }
 
 // memcpy exists to placate GCC.  Use memmove.
