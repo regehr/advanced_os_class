@@ -155,6 +155,10 @@ piperead(struct pipe *p, char *addr, int n)
   }
 
   for(toRead = n; toRead > 0;){
+    // If we've emptied the pipe and we must return:
+    if(p->written == 0)
+      break;
+    
     int i;
     int frontSpace, backSpace;
 
@@ -167,6 +171,8 @@ piperead(struct pipe *p, char *addr, int n)
         p->written -= canRead1;
         for (i = 0; i < canRead1; i++)
             addr[addrPos++] = p->data[p->nread++];
+        if (!p->writeopen)
+            cprintf("A: %d\n", toRead);
     }
 
     // Reset read head if appropriate:
@@ -182,11 +188,9 @@ piperead(struct pipe *p, char *addr, int n)
         p->written -= canRead2;
         for (i = 0; i < canRead2; i++)
             addr[addrPos++] = p->data[p->nread++];
+        if (!p->writeopen)
+            cprintf("B: %d\n", toRead);
     }
-
-    // If we've emptied the pipe and we must return:
-    if(p->written == 0)
-      break;
   }
  
   wakeup(&p->nwrite);
