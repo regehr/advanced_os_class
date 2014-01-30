@@ -77,7 +77,7 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i, j, bytes_left, nn;
+  int i, bytes_left, nn;
 
 
   acquire(&p->lock);
@@ -92,6 +92,8 @@ pipewrite(struct pipe *p, char *addr, int n)
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
     //how much we can write to the pipe.
+
+
     
     bytes_left = (p->nread + PIPESIZE) - p->nwrite;
     nn = i + bytes_left;
@@ -99,11 +101,34 @@ pipewrite(struct pipe *p, char *addr, int n)
       {
 	nn = n; 
       }
-    for(j = i ; j < nn; j++)
+
+    if(nn > PIPESIZE)
       {
-	p->data[p->nwrite++ % PIPESIZE] = addr[j];
+	int pipe_end, reach_around, k , l;
+	pipe_end = PIPESIZE;
+	reach_around = nn - PIPESIZE;
+	for(k = i; k < pipe_end; k++)
+	  {
+	    p->data[k] = addr[k];
+	  }
+	for(l = 0; l < reach_around; l++)
+	  {
+	    p->data[l] = addr[l];
+	  }
+	i = l;
+	p->nwrite += nn; 
+      }    
+    else
+      {
+	int j;
+	for(j = i ; j < nn; j++)
+	  {
+	    
+	    //get rid of this. 
+	    p->data[p->nwrite++ % PIPESIZE] = addr[j];
+	  }
+	i = j;
       }
-    i = j;
   }
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
@@ -126,6 +151,7 @@ piperead(struct pipe *p, char *addr, int n)
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(p->nread == p->nwrite)
       break;
+    //fix this
     addr[i] = p->data[p->nread++ % PIPESIZE];
   }
   wakeup(&p->nwrite);  //DOC: piperead-wakeup
