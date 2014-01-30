@@ -16,7 +16,7 @@ struct pipe {
   uint nwrite;    // number of bytes written
   int readopen;   // read fd is still open
   int writeopen;  // write fd is still open
-  __attribute__((aligned(64)))char data[PIPESIZE];
+  __attribute__((aligned(4)))char data[PIPESIZE];
 };
 
 int
