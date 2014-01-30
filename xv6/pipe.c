@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 8192
+#define PIPESIZE 3072
 
 struct pipe {
   struct spinlock lock;
