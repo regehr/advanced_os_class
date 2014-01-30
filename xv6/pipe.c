@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 3072 // Made pipesize 6x bigger
+#define PIPESIZE 3072 // Made pipesize 7x bigger
 
 struct pipe {
   struct spinlock lock;
@@ -77,10 +77,12 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i;
+  int i, index;
 
   acquire(&p->lock); // spins here until the lock is acquired
-  /*for(i = 0; i < n; i++){ // loops over the bytes being written (addr[0]-addr[n-1])
+
+#if 0
+  for(i = 0; i < n; i++){ // loops over the bytes being written (addr[0]-addr[n-1])
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
@@ -93,15 +95,14 @@ pipewrite(struct pipe *p, char *addr, int n)
   }
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
-  return n;*/
-  
-  // Need to make the counts wrap
-  // this should do it
-  // but I still need to check after each update
-#if 0
-  if(p->nwrite >= PIPESIZE)
-    p->nwrite = p->nwrite - PIPESIZE;
+  return n;
 #endif
+  
+#if 1
+  index = p->nwrite++ % PIPESIZE;
+
+  if(index >= PIPESIZE)
+    index = index - PIPESIZE;
 
   for(i = 0; (i+1) < n; i+=2){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
@@ -112,12 +113,13 @@ pipewrite(struct pipe *p, char *addr, int n)
       wakeup(&p->nread); // called when the pipe is full, then sleeps until some of the pipe is empty
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-    p->data[p->nwrite++ % PIPESIZE] = addr[i];
-    if(p->nwrite >= PIPESIZE)
-      p->nwrite = p->nwrite - PIPESIZE;
-    p->data[p->nwrite++ % PIPESIZE] = addr[i+1];
-    if(p->nwrite >= PIPESIZE)
-      p->nwrite = p->nwrite - PIPESIZE;
+    p->data[index++] = addr[i];//p->nwrite++ % PIPESIZE] = addr[i];
+    if(index >= PIPESIZE)
+      index = index - PIPESIZE;
+    p->data[index++] = addr[i+1];//p->nwrite++ % PIPESIZE] = addr[i+1];
+    if(index >= PIPESIZE)
+      index = index - PIPESIZE;
+    p->nwrite += 2;
   }
   if(n%2){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
@@ -128,11 +130,14 @@ pipewrite(struct pipe *p, char *addr, int n)
       wakeup(&p->nread); // called when the pipe is full, then sleeps until some of the pipe is empty
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-    p->data[p->nwrite++ % PIPESIZE] = addr[i];
+    p->data[index] = addr[--i];
   }
+  p->nwrite++;
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);  
-  return n;// speed:170000ms
+  return n;
+#endif
+// speed:170000ms
 //old speed: 319951 ms
 }
 
@@ -142,13 +147,7 @@ piperead(struct pipe *p, char *addr, int n)
   int i;
   
   acquire(&p->lock);
-
-  // This should update the count so they wrap around
-#if 0
-  if(p->nread >= PIPESIZE)
-    p->nread = p->nread - PIPESIZE;
-#endif
-
+#if 1
   while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
     if(proc->killed){
       release(&p->lock);
@@ -160,33 +159,31 @@ piperead(struct pipe *p, char *addr, int n)
     if(p->nread == p->nwrite)
       break;
     addr[i] = p->data[p->nread++ % PIPESIZE];
-    // This should update the count so they wrap around
-#if 0
-    if(p->nread >= PIPESIZE)
-      p->nread = p->nread - PIPESIZE;
-#endif
-  
-}
+  }
   wakeup(&p->nwrite);  //DOC: piperead-wakeup
   release(&p->lock);
   return i;
+#endif
 
-  /*for(i = 0; (i+1) < n; i+=2) {
+#if 0
+  for(i = 0; (i+1) < n; i+=2) {
     if(p->nread == p->nwrite)
       break;
     addr[i] = p->data[p->nread++ % PIPESIZE];
-    if(p->nread == p->nwrite) {
-      i++; //this probably doesn't even matter
+    if(p->nread == p->nwrite)
       break;
-    }
     addr[i+1] = p->data[p->nread++ % PIPESIZE];
   }
-  //need to do case for if n%2 != 0
+
   if(n%2) {
     if(p->nread != p->nwrite)
     addr[i] = p->data[p->nread++ % PIPESIZE];
+    i--;
   }
+  else
+    i -= 2;
   wakeup(&p->nwrite);  //DOC: piperead-wakeup
   release(&p->lock);
-  return i;*/
+  return i;
+#endif
 }
