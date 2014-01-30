@@ -7,7 +7,8 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 512
+//#define PIPESIZE 512
+#define PIPESIZE 3072
 
 /* Andrew Riley */
 
@@ -75,53 +76,58 @@ pipeclose(struct pipe *p, int writable)
     release(&p->lock);
 }
 
-//PAGEBREAK: 40
+int writeCurrent = 0;
+
+// I successfully removed the modulo function from
+// the memory copy yet I did not see any increase
+// in performance.
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i = 0;
+  int i;
+  int j = writeCurrent; // our current index in the buffer
 
   acquire(&p->lock);
-  /*for(i = 0; i < n; i++){
+  for(i = 0; i < n; i++){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
+	writeCurrent = j;
         return -1;
       }
       wakeup(&p->nread);
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-    p->data[p->nwrite++ % PIPESIZE] = addr[i];
-  }*/
 
-  do {
-    if(p->readopen == 0 || proc->killed){
-        release(&p->lock);
-        return -1;
-    }
-    else if (p->nwrite != p->nread + PIPESIZE) {
-      wakeup(&p->nread);
-      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
-    }
-    else
-      p->data[p->nwrite++ % PIPESIZE] = addr[i++];
+    if (j == PIPESIZE) j = 0; // reset the index pointer at end of buffer
 
-  } while (i < n);
+    p->data[j++] = addr[i];
+    p->nwrite++;
+
+    //p->data[p->nwrite++ % PIPESIZE] = addr[i];
+
+  }
 
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
+  writeCurrent = j;
+  
   return n;
 }
+
+int readCurrent = 0;
 
 int
 piperead(struct pipe *p, char *addr, int n)
 {
   int i;
+  int j = readCurrent; // our current index in the buffer
 
   acquire(&p->lock);
   while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
     if(proc->killed){
       release(&p->lock);
+      readCurrent = j;
       return -1;
     }
     sleep(&p->nread, &p->lock); //DOC: piperead-sleep
@@ -129,9 +135,19 @@ piperead(struct pipe *p, char *addr, int n)
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(p->nread == p->nwrite)
       break;
-    addr[i] = p->data[p->nread++ % PIPESIZE];
+    
+    if (j == PIPESIZE) j = 0; // reset the index pointer at end of buffer
+
+    addr[i] = p->data[j++];
+    p->nread++; // increment our pointers
+
+
+    //addr[i] = p->data[p->nread++ % PIPESIZE];
   }
+
   wakeup(&p->nwrite);  //DOC: piperead-wakeup
   release(&p->lock);
+  readCurrent = j;
+
   return i;
 }
