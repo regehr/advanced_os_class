@@ -147,6 +147,7 @@ piperead(struct pipe *p, char *addr, int n)
       return -1;
     }
     sleep(&p->nread, &p->lock); //DOC: piperead-sleep
+    //if sleep comes back and there is nothing in the pipe return 0 
   }
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(p->nread == p->nwrite)
