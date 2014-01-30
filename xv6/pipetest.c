@@ -1,5 +1,7 @@
 // comment out this line before doing bandwidth tests
-#define CHECK 1
+// #define CHECK 1
+
+// define VERBOSE 1
 
 #ifdef __XV6__
 
@@ -59,7 +61,7 @@ static void AssertionFailure(char *exp, char *file, int line)
 #define BLOCK_SIZE 8192
 static unsigned char buf[BLOCK_SIZE];
 
-static const int BYTES = 1000*1000*1000;
+static const int BYTES = 10*1000*1000;
 
 #ifdef CHECK
 
@@ -96,6 +98,9 @@ static void reader (int fd)
   int z;
   do {
     z = _read (fd, buf, BLOCK_SIZE);
+#ifdef VERBOSE
+    Printf (1, "read %d bytes\n", z);
+#endif
     Assert (z != -1);      
     bytes_read += z;
 #ifdef CHECK
@@ -132,6 +137,9 @@ static void writer (int fd)
     }
 #endif
     int z = _write (fd, buf, BLOCK_SIZE);
+#ifdef VERBOSE
+    Printf (1, "wrote %d bytes\n", z);
+#endif
     Assert (z != 0);
 #ifdef CHECK
     last_pos = z;

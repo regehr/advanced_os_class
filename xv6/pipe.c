@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 512
+#define PIPESIZE 2048
 
 struct pipe {
   struct spinlock lock;
@@ -73,48 +73,92 @@ pipeclose(struct pipe *p, int writable)
     release(&p->lock);
 }
 
+int min (int a, int b)
+{
+  if (a<b) return a;
+  return b;
+}
+
+void* memcpy2(void* dest, const void* src, int count) {
+
+  int* dst32 = (int*)dest;
+  int* src32 = (int*)src;      
+  while (count > 3) {
+    *dst32 = *src32;
+    count -= 4;
+    dst32++;
+    src32++;
+  }
+  dest = dst32;
+  src = src32;
+
+  char* dst8 = (char*)dest;
+  char* src8 = (char*)src;
+  
+  while (count--) {
+    *dst8++ = *src8++;
+  }
+  return dest;
+}
+
 //PAGEBREAK: 40
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i;
-
+  int written = 0;
   acquire(&p->lock);
-  for(i = 0; i < n; i++){
-    while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
+ restart: 
+  ;
+  int pipe_pos = p->nwrite % PIPESIZE;
+  int bytes_left = PIPESIZE + p->nread - p->nwrite;
+  int towrite = PIPESIZE;                        // for speed, we'd like to write this many bytes
+  towrite = min (towrite, n);                    // but we can write at most n
+  towrite = min (towrite, PIPESIZE - pipe_pos);  // and at most to the end of the buffer
+  towrite = min (towrite, bytes_left);           // and at most until the pipe becomes full
+  if (towrite == 0) {
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
         return -1;
+      } else {
+	wakeup(&p->nread);
+	sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+	goto restart;
       }
-      wakeup(&p->nread);
-      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
-    }
-    p->data[p->nwrite++ % PIPESIZE] = addr[i];
   }
-  wakeup(&p->nread);  //DOC: pipewrite-wakeup1
+  memcpy2 (&p->data[pipe_pos], addr + written, towrite);
+  written += towrite;
+  p->nwrite += towrite;
+  wakeup(&p->nread);
   release(&p->lock);
-  return n;
+  return written;
 }
 
 int
 piperead(struct pipe *p, char *addr, int n)
 {
-  int i;
-
+  int read = 0;
   acquire(&p->lock);
-  while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
+  while(p->nread == p->nwrite && p->writeopen) {
     if(proc->killed){
       release(&p->lock);
       return -1;
     }
-    sleep(&p->nread, &p->lock); //DOC: piperead-sleep
+    sleep(&p->nread, &p->lock);
   }
-  for(i = 0; i < n; i++){  //DOC: piperead-copy
-    if(p->nread == p->nwrite)
-      break;
-    addr[i] = p->data[p->nread++ % PIPESIZE];
+  if (p->nread == p->nwrite) {
+    release(&p->lock);
+    return read;
   }
-  wakeup(&p->nwrite);  //DOC: piperead-wakeup
+  int pipe_pos = p->nread % PIPESIZE;
+  int bytes_left = p->nwrite - p->nread;
+  int toread = PIPESIZE;
+  toread = min (toread, n);
+  toread = min (toread, bytes_left);
+  toread = min (toread, PIPESIZE - pipe_pos);
+  memcpy2 (addr, &p->data[pipe_pos], toread);
+  p->nread += toread;
+  read += toread;
+  wakeup(&p->nwrite);
   release(&p->lock);
-  return i;
+  return read;
 }
