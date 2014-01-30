@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 8192
+#define PIPESIZE 2048
 
 struct pipe {
   struct spinlock lock;
@@ -77,11 +77,12 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
+  cprintf("in pipewrite\n");
   int i;
-  
   acquire(&p->lock);
-  for(i = 0; i < n; i++){
-    while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
+  for(i = 0; i < n; ){//i++){
+    while((p->nwrite + 3) > p->nread + PIPESIZE) {
+      // while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
       if(p->readopen == 0 || proc->killed){
         release(&p->lock);
         return -1;
@@ -89,7 +90,33 @@ pipewrite(struct pipe *p, char *addr, int n)
       wakeup(&p->nread);
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-	p->data[p->nwrite++ % PIPESIZE] = addr[i];
+    if((p->nwrite + 3) < PIPESIZE)
+      {
+	cprintf("in first if, p->nwrite is: %d\n", p->nwrite);
+	int b_towrite = (i+4 > n) ? n-i : 4;
+	memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], b_towrite);
+	p->nwrite += b_towrite;
+	i += b_towrite;
+      }
+    else // p->nwrite + 3 >= PIPESIZE
+      {
+	cprintf("in else, p->nwrite is: %d, i is: %d, n is: %d\n", p->nwrite, i , n);
+	int b_towrite = (i+4 > n) ? n-i : 4;
+	int can_write = (PIPESIZE > i) ? PIPESIZE - i : 4; // write negative bytes in some cases, which is bad
+	memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], can_write);
+	p->nwrite += can_write;
+	i += can_write;
+	if(can_write < b_towrite)
+	  {
+	    can_write = b_towrite - can_write;
+	    memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], can_write);
+	    p->nwrite += can_write;
+	    i += can_write;
+	  }
+	else
+	  continue;
+      }
+    // p->data[p->nwrite++ % PIPESIZE] = addr[i];
   }
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
