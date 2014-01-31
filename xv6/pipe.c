@@ -84,59 +84,41 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-    int toWrite;
+    int toWrite = n;
     int addrPos = 0;
-    int canWrite1 = 0;  // Amount of space we can write before reaching end of the buffer
-    int canWrite2 = 0;  // Amount of space we can write assuming we wrap around the buffer
+    int canWrite;
 
     acquire(&p->lock);
-    for(toWrite = n; toWrite > 0;){
+
+    while (toWrite > 0){
+        // We need to wait on a reader as long as the pipe is full:
         while(p->written == PIPESIZE){
-            if(p->readopen == 0 || proc->killed){
+            if (p->readopen == 0 || proc->killed){
                 release(&p->lock);
                 return -1;
             }
             wakeup(&p->nread);
-            sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+            sleep(&p->nwrite, &p->lock);
         }
+
+        // Compute the space we can write to. If nwrite is ahead of nread,
+        // that is the space to the end of the buffer. Otherwise, it is the
+        // space towards nread.
+        int space = (p->nwrite >= p->nread) ? PIPESIZE - p->nwrite : p->nread - p->nwrite;
+        canWrite = (toWrite > space) ? space : toWrite;
+        toWrite -= canWrite;
+        p->written += canWrite;
         
-        //int i;
-        int frontSpace, backSpace;
-        
-        // Write toward end of pipe if we're ahead of the reader:
-        if (p->nwrite >= p->nread)
-        {
-            frontSpace = PIPESIZE - p->nwrite;
-            canWrite1 = (toWrite > frontSpace) ? frontSpace : toWrite;
-            toWrite -= canWrite1;
-            p->written += canWrite1;
-            //for (i = 0; i < canWrite1; i++)
-            //    p->data[p->nwrite++] = addr[addrPos++];
-            memmove(p->data+p->nwrite, addr+addrPos, canWrite1);
-            p->nwrite += canWrite1;
-            addrPos += canWrite1;
-        }
-        
-        // Reset to front if we got to the end of the buffer:
+        // Perform copy and adjust pointers appropriately:
+        memmove(p->data+p->nwrite, addr+addrPos, canWrite);
+        p->nwrite += canWrite;
+        addrPos += canWrite;
+
+        // If we wrote to the end of the buffer, move write head to the front:
         if (p->nwrite == PIPESIZE)
             p->nwrite = 0;
-        
-        // Write from front if there's anything left:
-        if (toWrite > 0)
-        {
-            backSpace = p->nread - p->nwrite;
-            canWrite2 = (toWrite > backSpace) ? backSpace : toWrite;
-            toWrite -= canWrite2;
-            p->written += canWrite2;
-            //for (i = 0; i < canWrite2; i++)
-            //    p->data[p->nwrite++] = addr[addrPos++];
-            memmove(p->data+p->nwrite, addr+addrPos, canWrite2);
-            p->nwrite += canWrite2;
-            addrPos += canWrite2;
-        }
     }
 
-    wakeup(&p->nread);  //DOC: pipewrite-wakeup1
     release(&p->lock);
     return n;
 }
@@ -144,64 +126,48 @@ pipewrite(struct pipe *p, char *addr, int n)
 int
 piperead(struct pipe *p, char *addr, int n)
 {
-  int toRead;
-  int canRead1 = 0;
-  int canRead2 = 0;
-  int addrPos = 0;
+    int toRead = n;
+    int addrPos = 0;
+    int canRead;
 
-  acquire(&p->lock);
-  
-  // While empty:
-  while((p->written == 0) && p->writeopen){
-    if(proc->killed){
-      release(&p->lock);
-      return -1;
-    }
-    sleep(&p->nread, &p->lock);
-  }
+    acquire(&p->lock);
 
-  for(toRead = n; toRead > 0;){
-    // If we've emptied the pipe and we must return:
-    if(p->written == 0)
-      break;
-    
-    //int i;
-    int frontSpace, backSpace;
-
-    // Read up to the front of the buffer if we're ahead of the writer:
-    if (p->nread >= p->nwrite)
-    {
-        frontSpace = PIPESIZE - p->nread;
-        canRead1 = (toRead > frontSpace) ? frontSpace : toRead;
-        toRead -= canRead1;
-        p->written -= canRead1;
-        //for (i = 0; i < canRead1; i++)
-        //    addr[addrPos++] = p->data[p->nread++];
-        memmove(addr+addrPos, p->data+p->nread, canRead1);
-        addrPos += canRead1;
-        p->nread += canRead1;
+    // We need to wait on a writer as long as the pipe is empty,
+    // and there is a writer to give us more bytes:
+    while((p->written == 0) && p->writeopen){
+        if(proc->killed){
+            release(&p->lock);
+            return-1;
+        }
+        sleep(&p->nread, &p->lock);
     }
 
-    // Reset read head if appropriate:
-    if (p->nread == PIPESIZE)
-        p->nread = 0;
+    while (toRead > 0){
+        // Although we escaped the above while loop, it's possible that
+        // is because the writer is dead. If we have nothing now, we
+        // exit with a 0 byte read.
+        if (p->written == 0)
+            break;
 
-    // Read towards the write head if we're looking for more:
-    if (toRead > 0)
-    {
-        backSpace = p->nwrite - p->nread;
-        canRead2 = (toRead > backSpace) ? backSpace : toRead;
-        toRead -= canRead2;
-        p->written -= canRead2;
-        //for (i = 0; i < canRead2; i++)
-        //    addr[addrPos++] = p->data[p->nread++];
-        memmove(addr+addrPos, p->data+p->nread, canRead2);
-        addrPos += canRead2;
-        p->nread += canRead2;
+        // Compute the contiguous space we can write to. If we're ahead
+        // of nwrite, that means we will write towards the end of the
+        // buffer. Otherwise, we write towards nwrite:
+        int space = (p->nread >= p->nwrite) ? PIPESIZE - p->nread : p->nwrite - p->nread;
+        canRead = (toRead > space) ? space : toRead;
+        toRead -= canRead;
+        p->written -= canRead;
+
+        // Perform write and adjust pointers appropriately:
+        memmove(addr+addrPos, p->data+p->nread, canRead);
+        addrPos += canRead;
+        p->nread += canRead;
+
+        // If we hit the end of the buffer, wrap nread back to the start:
+        if (p->nread == PIPESIZE)
+            p->nread = 0;
     }
-  }
- 
-  wakeup(&p->nwrite);
-  release(&p->lock);
-  return n - toRead;
+
+    wakeup(&p->nwrite);
+    release(&p->lock);
+    return n - toRead;
 }
