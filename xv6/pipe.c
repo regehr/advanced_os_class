@@ -80,6 +80,28 @@ pipeclose(struct pipe *p, int writable)
     release(&p->lock);
 }
 
+void* memcpy2(void* dest, const void* src, int count) {
+
+  int* dst32 = (int*)dest;
+  int* src32 = (int*)src;      
+  while (count > 3) {
+    *dst32 = *src32;
+    count -= 4;
+    dst32++;
+    src32++;
+  }
+  dest = dst32;
+  src = src32;
+
+  char* dst8 = (char*)dest;
+  char* src8 = (char*)src;
+  
+  while (count--) {
+    *dst8++ = *src8++;
+  }
+  return dest;
+}
+
 //PAGEBREAK: 40
 int
 pipewrite(struct pipe *p, char *addr, int n)
@@ -110,7 +132,8 @@ pipewrite(struct pipe *p, char *addr, int n)
         p->written += canWrite;
         
         // Perform copy and adjust pointers appropriately:
-        memmove(p->data+p->nwrite, addr+addrPos, canWrite);
+        //memmove(p->data+p->nwrite, addr+addrPos, canWrite);
+        memcpy2(p->data+p->nwrite, addr+addrPos, canWrite);
         p->nwrite += canWrite;
         addrPos += canWrite;
 
@@ -158,7 +181,8 @@ piperead(struct pipe *p, char *addr, int n)
         p->written -= canRead;
 
         // Perform write and adjust pointers appropriately:
-        memmove(addr+addrPos, p->data+p->nread, canRead);
+        //memmove(addr+addrPos, p->data+p->nread, canRead);
+        memcpy2(addr+addrPos, p->data+p->nread, canRead);
         addrPos += canRead;
         p->nread += canRead;
 
