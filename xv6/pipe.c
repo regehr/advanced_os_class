@@ -7,9 +7,9 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 512
+//#define PIPESIZE 512
 //#define PIPESIZE 1024
-//#define PIPESIZE 2048
+#define PIPESIZE 2048
 //#define PIPESIZE 4096
 //#define PIPESIZE 8192
 
