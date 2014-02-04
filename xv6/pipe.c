@@ -22,6 +22,28 @@ struct pipe {
   int writeopen;  // write fd is still open
 };
 
+void * pmemcpy(void *dst, const void *src, int count)
+{
+  void * start_dst  = dst;
+  int * dst32       = (int*)dst;
+  const int * src32 = (const int*)src;
+  while(count > 3) {
+    *dst32++ = *src32++;
+    count -= 4;
+  }
+
+  dst = dst32;
+  src = src32;
+
+  char *dst8       = (char*)dst;
+  const char *src8 = (const char*)src;
+
+  while(count--) {
+    *dst8++ = *src8++;
+  }
+  return start_dst;
+}
+
 int
 pipealloc(struct file **f0, struct file **f1)
 {
@@ -78,7 +100,7 @@ pipeclose(struct pipe *p, int writable)
 }
 
 #define NORMAL_READ  1
-#define NORMAL_WRITE 1
+#define NORMAL_WRITE 0
 
 #if NORMAL_WRITE
 //PAGEBREAK: 40
@@ -122,6 +144,24 @@ pipewrite(struct pipe *p, char *addr, int n)
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
 //    p->data[p->nwrite++ % PIPESIZE] = addr[i++];
+//    memmove(p->data + (p->nwrite % PIPESIZE),addr + i,1);
+    int pipepos = p->nwrite % PIPESIZE;
+    int left = PIPESIZE + p->nread - p->nwrite;
+    int towrite = PIPESIZE > n ? n : PIPESIZE;
+    towrite = towrite > pipepos ? pipepos : towrite;
+    towrite = towrite > left ? left : towrite;
+    if(!towrite) {
+      break;
+    }
+    pmemcpy(&p->data[pipepos], addr + i, towrite);
+    p->nwrite += towrite;
+    i += towrite;
+/*
+    pmemcpy(p->data + (p->nwrite % PIPESIZE),addr + i,1);
+    p->nwrite += 1;
+    i += 1;
+*/
+/*
     if(PIPESIZE<=n-i) {
       memmove(p->data,addr,PIPESIZE);
       p->nwrite+=PIPESIZE;
@@ -131,6 +171,7 @@ pipewrite(struct pipe *p, char *addr, int n)
       p->nwrite+=n-i;
       i+=n-i;
     }
+*/
   }
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
@@ -188,3 +229,4 @@ piperead(struct pipe *p, char *addr, int n)
   return i;
 }
 #endif
+
