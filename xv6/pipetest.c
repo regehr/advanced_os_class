@@ -59,7 +59,7 @@ static void AssertionFailure(char *exp, char *file, int line)
 #define BLOCK_SIZE 8192
 static unsigned char buf[BLOCK_SIZE];
 
-static const int BYTES = 1000*1000*1000;
+static const int BYTES = 100*100*100;
 
 #ifdef CHECK
 
@@ -103,7 +103,7 @@ static void reader (int fd)
       int i;
       for (i=0; i<z; i++) {
 	unsigned char expect = _lrand48(&s);
-	//	Printf(1, "i is: %d, expect is: %d: ,is actually: %d\n", i, expect, buf[i]);
+	//		Printf(1, "i is: %d, expect is: %d: ,is actually: %d\n", i, expect, buf[i]);
 	Assert (buf[i] == expect);
 	
       }
