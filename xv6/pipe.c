@@ -125,11 +125,27 @@ pipewrite(struct pipe *p, char *addr, int n)
 	goto restart;
       }
   }
-  memcpy2 (&p->data[pipe_pos], addr + written, towrite);
+  memcpy2 (&p->data[pipe_pos], addr + written, towrite);  
   written += towrite;
   p->nwrite += towrite;
+
+
+
+  int bytes_left_in_front = bytes_left - pipe_pos;
+  if(bytes_left_in_front > 0)
+    {
+      memcpy2 (&p->data[0], addr + written, bytes_left_in_front);
+      written += bytes_left_in_front;
+      p->nwrite += bytes_left_in_front;
+    }
+
   wakeup(&p->nread);
-  release(&p->lock);
+  release(&p->lock);  
+  if(n != written)
+    {
+      goto restart;
+    }
+  
   return written;
 }
 
@@ -158,6 +174,16 @@ piperead(struct pipe *p, char *addr, int n)
   memcpy2 (addr, &p->data[pipe_pos], toread);
   p->nread += toread;
   read += toread;
+
+  int bytes_left_in_front = bytes_left - pipe_pos;
+  if(bytes_left_in_front > 0)
+    {
+      memcpy2 (addr + read, &p->data[0], bytes_left_in_front);
+      read += bytes_left_in_front;
+      p->nread += bytes_left_in_front;
+    }
+
+
   wakeup(&p->nwrite);
   release(&p->lock);
   return read;
