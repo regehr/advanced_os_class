@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 2048
+#define PIPESIZE 3072
 
 struct pipe {
   struct spinlock lock;
@@ -77,7 +77,7 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  cprintf("in pipewrite\n");
+  //  cprintf("n at beginning is: %d\n", n);
   int i;
   acquire(&p->lock);
   for(i = 0; i < n; ){//i++){
@@ -89,28 +89,43 @@ pipewrite(struct pipe *p, char *addr, int n)
       wakeup(&p->nread);
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-    if((p->nwrite % PIPESIZE) < (p->nread % PIPESIZE))
+    if(p->nwrite < PIPESIZE)
       {
-	int x = n - p->nwrite;
-	int y = (p->nread % PIPESIZE) - (p->nwrite % PIPESIZE);
-	int z = x < y ? x : y;
-	memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], z);
-	p->nwrite += z;
-	i += z;
+	int x = PIPESIZE - p->nwrite;
+	int y = (n - i) < x ? (n - i) : x;
+	memmove(&p->data[p->nwrite], &addr[i], y);
+	p->nwrite += y;
+	i += y;
       }
-    else
+    else if((p->nwrite % PIPESIZE) >= (p->nread % PIPESIZE))
+      { 
+	//	cprintf("in second if: p->nwrite: %d \n", p->nwrite);
+	int x = PIPESIZE - (p->nwrite % PIPESIZE);
+	int y = (n - i) < x ? (n - i) : x;
+	memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], y);
+	p->nwrite += y;
+	i += y;
+	//	cprintf("p->nwrite is: %d, i is: %d\n", p->nwrite, i);
+      }
+    else // found my error, in one situation i was trying to write 0 bytes, so looping infinitely
       {
-	int x = n - p->nwrite; 
-	int y = PIPESIZE - (p->nwrite % PIPESIZE);
-	int z = x < y ? x : y;
-	memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], z);
-	p->nwrite += z;
-	i += z;
+	//	cprintf("in third if: p->nwrite: %d \n", p->nwrite);
+	//	cprintf("p->nread is: %d \n", p->nread);
+	int x = (p->nread % PIPESIZE) - (p->nwrite % PIPESIZE);
+	//	cprintf("x is: %d \n", x);
+	int y = (n - i) < x ? (n - i) : x;
+	//	cprintf("y is: %d \n", y);
+	//	cprintf("n is: %d \n", n);
+	//	cprintf("i is: %d \n", i);
+	memmove(&p->data[p->nwrite % PIPESIZE], &addr[i], y);
+	p->nwrite += y;
+	i += y;
       }
     
   }
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);
+  // cprintf("return n: %d\n", n);
   return n;
 }
 
