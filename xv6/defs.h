@@ -117,6 +117,13 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 
+// shmem.c
+// TODO
+extern struct spinlock shmemlock;
+extern struct shmem_entry* shmem_entries;
+int             initshm(void);
+void*           getshm(int, int);
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 
@@ -179,3 +186,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+// Min and max functions:
+#define MIN(x,y) ((x)<(y) ? (x) : (y))
+#define MAX(x,y) ((x)>(y) ? (x) : (y))

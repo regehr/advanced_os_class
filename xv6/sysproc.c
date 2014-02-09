@@ -115,6 +115,16 @@ int sys_gettime(void)
   *sec = (ticks1 / 100);
   
   return 0;
-  
+}
 
+int
+sys_shmget(void)
+{
+    if (shmem_entries == NULL)
+        if(initshm())
+            return -1;
+
+    // TODO: get pages and map them into user memory
+
+    return 0;
 }
