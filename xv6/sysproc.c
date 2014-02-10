@@ -115,6 +115,23 @@ int sys_gettime(void)
   *sec = (ticks1 / 100);
   
   return 0;
-  
+}
 
+int sys_shared(void)
+{
+  struct shared *share;
+
+  // if there's already a shared page, return now
+  if (proc->shared) {
+    return SHARED_V;
+  }
+
+  share = sharedalloc();
+  if (sh) {
+    proc->shared = share;
+    mappages(proc->pgdir, (char *)SHARED_V, PGSIZE, v2p(share->page), PTE_W|PTE_U);
+    return SHARED_V;
+  } else { //shared alloc failed
+    return 0;
+  }
 }
