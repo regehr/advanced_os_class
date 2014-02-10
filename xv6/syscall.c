@@ -41,12 +41,30 @@ fetchstr(uint addr, char **pp)
   return -1;
 }
 
+
+//fetch the ulong
+unsigned long
+fetchulong(uint addr, unsigned long *ptr){
+  if(addr >= proc->sz || addr+4 > proc->sz){
+    
+  }
+}
+
+
 // Fetch the nth 32-bit system call argument.
 int
 argint(int n, int *ip)
 {
   return fetchint(proc->tf->esp + 4 + 4*n, ip);
 }
+
+
+int 
+argulong(int n, unsigned long *ptr)
+{
+  return fetchulong(proc->tf->esp + 4 + 4*n, ptr);
+}
+
  
 // Fetch the nth word-sized system call argument as a pointer
 // to a block of memory of size n bytes.  Check that the pointer
@@ -99,6 +117,7 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_gettime(void);
+extern int sys_gettime(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -123,6 +142,7 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_gettime] sys_gettime,
+[SYS_shmget]  sys_shmget,
 };
 
 void

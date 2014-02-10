@@ -92,6 +92,27 @@ sys_uptime(void)
 }
 
 
+int sys_shmget(void)
+{
+  int token;
+  unsigned long va_ptr;
+  uint size;
+  
+  if(argint(0,&token)<0 ||
+     argulong(1,&va_ptr) < 0 ||
+     arguint(2,&size) < 0){
+    
+    cprintf("Error getting vars in shmget()\n");
+    return -1;
+  }
+
+  
+  
+  
+
+}
+
+
 int sys_gettime(void)
 {
   unsigned long *msec;

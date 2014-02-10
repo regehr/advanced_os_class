@@ -66,6 +66,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int shmem_tok;               // Token for this process' shared memory region
+  char *startaddr;             // Virtual address of the start region of their shmem
+  uint size;                   // Size of the shared memory region
 };
 
 // Process memory is laid out contiguously, low addresses first:
