@@ -1,0 +1,147 @@
+------------------------------------------------------------------
+
+hardware: Intel i7-4770 with 16 GB, 4 cores (hyperthreading disabled)
+
+host OS: 64-bit Ubuntu 13.10
+
+VM: Qemu 1.5 with KVM, 2 cores
+
+------------------------------------------------------------------
+
+xv6 in a VM:
+
+$ ./pipetest
+running in checked mode
+1000003831 bytes written in 244003 calls to write()
+1000003831 bytes read in 2141563 calls to read()
+elapsed time = 11260 ms
+$ ./pipetest
+running in checked mode
+1000002974 bytes written in 244196 calls to write()
+1000002974 bytes read in 2141417 calls to read()
+elapsed time = 11250 ms
+$ ./pipetest
+running in checked mode
+1000000841 bytes written in 243784 calls to write()
+1000000841 bytes read in 2141273 calls to read()
+elapsed time = 11290 ms
+
+$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 1953137 calls to read()
+elapsed time = 6450 ms
+$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 1953137 calls to read()
+elapsed time = 6450 ms
+$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 1953137 calls to read()
+elapsed time = 6470 ms
+
+------------------------------------------------------------------
+
+xv6 fast pipes in a VM:
+
+$ ./pipetest
+running in checked mode
+1000001536 bytes written in 627002 calls to write()
+1000001536 bytes read in 627003 calls to read()
+elapsed time = 6450 ms
+$ ./pipetest
+running in checked mode
+1000000952 bytes written in 627024 calls to write()
+1000000952 bytes read in 627025 calls to read()
+elapsed time = 6450 ms
+$ ./pipetest
+running in checked mode
+1000001536 bytes written in 626789 calls to write()
+1000001536 bytes read in 626790 calls to read()
+elapsed time = 6450 ms
+
+$ ./pipetest
+1000001536 bytes written in 488282 calls to write()
+1000001536 bytes read in 488283 calls to read()
+elapsed time = 540 ms
+$ ./pipetest
+1000001536 bytes written in 488282 calls to write()
+1000001536 bytes read in 488283 calls to read()
+elapsed time = 550 ms
+$ ./pipetest
+1000001536 bytes written in 488282 calls to write()
+1000001536 bytes read in 488283 calls to read()
+elapsed time = 450 ms
+$ ./pipetest
+1000001536 bytes written in 488282 calls to write()
+1000001536 bytes read in 488283 calls to read()
+elapsed time = 460 ms
+
+------------------------------------------------------------------
+
+64-bit Linux in a VM, 32-bit pipetest statically linked
+
+running in checked mode
+1000001330 bytes written in 244438 calls to write()
+1000001330 bytes read in 244439 calls to read()
+elapsed time = 7032 ms
+regehr@regehr-virtual-machine:~$ ./pipetest-checked 
+running in checked mode
+1000007249 bytes written in 244350 calls to write()
+1000007249 bytes read in 244351 calls to read()
+elapsed time = 7035 ms
+regehr@regehr-virtual-machine:~$ ./pipetest-checked 
+running in checked mode
+1000005671 bytes written in 243769 calls to write()
+1000005671 bytes read in 243770 calls to read()
+elapsed time = 7025 ms
+
+regehr@regehr-virtual-machine:~$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 122072 calls to read()
+elapsed time = 208 ms
+regehr@regehr-virtual-machine:~$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 122072 calls to read()
+elapsed time = 177 ms
+regehr@regehr-virtual-machine:~$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 122072 calls to read()
+elapsed time = 181 ms
+
+
+------------------------------------------------------------------
+
+64-bit Linux native, 4 cores, 32-bit pipetest statically linked
+
+regehr@regehr-M51AC:~$ ./pipetest-checked 
+running in checked mode
+1000000047 bytes written in 243647 calls to write()
+1000000047 bytes read in 243648 calls to read()
+elapsed time = 3723 ms
+regehr@regehr-M51AC:~$ ./pipetest-checked 
+running in checked mode
+1000002671 bytes written in 243809 calls to write()
+1000002671 bytes read in 243810 calls to read()
+elapsed time = 3732 ms
+regehr@regehr-M51AC:~$ ./pipetest-checked 
+running in checked mode
+1000006871 bytes written in 244068 calls to write()
+1000006871 bytes read in 244069 calls to read()
+elapsed time = 3727 ms
+
+regehr@regehr-M51AC:~$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 122072 calls to read()
+elapsed time = 171 ms
+regehr@regehr-M51AC:~$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 122072 calls to read()
+elapsed time = 191 ms
+regehr@regehr-M51AC:~$ ./pipetest
+1000005632 bytes written in 122071 calls to write()
+1000005632 bytes read in 122072 calls to read()
+elapsed time = 206 ms
+
+
+------------------------------------------------------------------
+
