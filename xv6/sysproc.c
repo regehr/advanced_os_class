@@ -118,3 +118,9 @@ int sys_gettime(void)
   
 
 }
+
+int
+sys_shmget(uint key, uint size, void *address)
+{
+  return 0;
+}

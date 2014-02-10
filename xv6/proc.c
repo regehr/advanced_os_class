@@ -70,6 +70,10 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  p->sh_mem_token  = 0;
+  p->start_address = 0;
+  p->size          = 0;
+
   return p;
 }
 
