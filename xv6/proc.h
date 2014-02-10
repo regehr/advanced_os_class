@@ -51,6 +51,19 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+//********
+// The virtual address where shared memory appears, if requested
+#define SHARED_V 0x70000000
+
+// the maximum number of shared pages in the system
+#define NSHARED 10
+
+struct shared {
+  int refcount;
+  void *page; 
+};
+//********
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -66,6 +79,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  struct shared *shared        // Shared memory record
 };
 
 // Process memory is laid out contiguously, low addresses first:
