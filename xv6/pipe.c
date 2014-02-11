@@ -7,7 +7,7 @@
 #include "file.h"
 #include "spinlock.h"
 
-#define PIPESIZE 3072 // Made pipesize 7x bigger
+#define PIPESIZE 3072 // Made pipesize 6x bigger
 
 struct pipe {
   struct spinlock lock;
@@ -77,7 +77,7 @@ pipeclose(struct pipe *p, int writable)
 int
 pipewrite(struct pipe *p, char *addr, int n)
 {
-  int i, index;
+  int i;//, index;
 
   acquire(&p->lock); // spins here until the lock is acquired
 
@@ -99,10 +99,10 @@ pipewrite(struct pipe *p, char *addr, int n)
 #endif
   
 #if 1
-  index = p->nwrite++ % PIPESIZE;
+  //index = p->nwrite++ % PIPESIZE;
 
-  if(index >= PIPESIZE)
-    index = index - PIPESIZE;
+  //if(index >= PIPESIZE)
+    //index = index - PIPESIZE;
 
   for(i = 0; (i+1) < n; i+=2){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
@@ -113,13 +113,13 @@ pipewrite(struct pipe *p, char *addr, int n)
       wakeup(&p->nread); // called when the pipe is full, then sleeps until some of the pipe is empty
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-    p->data[index++] = addr[i];//p->nwrite++ % PIPESIZE] = addr[i];
-    if(index >= PIPESIZE)
+    p->data[p->nwrite++ % PIPESIZE] = addr[i]; //index++] = addr[i];
+    /*if(index >= PIPESIZE)
+      index = index - PIPESIZE;*/
+    p->data[p->nwrite++ % PIPESIZE] = addr[i+1];//index++] = addr[i+1];//
+    /*if(index >= PIPESIZE)
       index = index - PIPESIZE;
-    p->data[index++] = addr[i+1];//p->nwrite++ % PIPESIZE] = addr[i+1];
-    if(index >= PIPESIZE)
-      index = index - PIPESIZE;
-    p->nwrite += 2;
+    p->nwrite += 2;*/
   }
   if(n%2){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
@@ -130,9 +130,9 @@ pipewrite(struct pipe *p, char *addr, int n)
       wakeup(&p->nread); // called when the pipe is full, then sleeps until some of the pipe is empty
       sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
     }
-    p->data[index] = addr[--i];
+    p->data[p->nwrite++ % PIPESIZE] = addr[--i];//index] = addr[--i];
   }
-  p->nwrite++;
+  //p->nwrite++;
   wakeup(&p->nread);  //DOC: pipewrite-wakeup1
   release(&p->lock);  
   return n;
