@@ -119,6 +119,9 @@ int sys_gettime(void)
 
 }
 
+
+// returns -1 if something goes wrong
+// returns 0 otherwise, assumes address is page aligned
 int sys_shmget(void)
 {
   struct proc *p;
@@ -130,8 +133,8 @@ int sys_shmget(void)
   argptr(1, &addr, sizeof(char));
   argptr(2, (char **) &len, sizeof(uint)); 
   // check if allowed address
-  if(!(pte = walkpgdir(proc->pgdir, (void *) addr, 0)))
-    return -1;
+  //  if(!(pte = walkpgdir(proc->pgdir, (void *) addr, 0)))
+  //  return -1;
   if(*token == 0) // tokens must be greater than or equal to 0
     return -1;
   // case 1: have unused token, but len is 0, return negative 1
