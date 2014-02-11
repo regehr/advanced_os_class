@@ -118,12 +118,8 @@ void            wakeup(void*);
 void            yield(void);
 
 // shmem.c
-// TODO
-extern struct spinlock shmemlock;
-extern struct shmem_entry* shmem_entries;
 int             initshm(void);
 int             getshm(int, int, struct proc*, void*);
-#define SHMEM_V_LOC 0x70000000
 
 // swtch.S
 void            swtch(struct context**, struct context*);

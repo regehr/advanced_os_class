@@ -1,5 +1,10 @@
-#include "defs.h"
 #include "types.h"
+#include "mmu.h"
+#include "memlayout.h"
+#include "param.h"
+#include "spinlock.h"
+#include "proc.h"
+#include "defs.h"
 // TODO
 
 #ifndef NULL
@@ -21,7 +26,7 @@ struct shmem_entry
 };
 
 struct spinlock shmemlock;
-struct shmem_entry shmem_entries[MAX_SHMEM_ENTRIES];
+struct shmem_entry* shmem_entries;
 
 int
 initshm()
@@ -65,9 +70,9 @@ getshm(int key, int size, struct proc* proc, void* va)
 
     // Scan thru shmem entries to see if we've either already allocated a spot, 
     // or if a slot still exists to allocate:
-    //int i;
+    int i;
     int open_spot = -1;
-    struct shmem_entry* found_entry;
+    struct shmem_entry found_entry;
     for (i = 0; i < MAX_SHMEM_ENTRIES; i++)
     {
         // Already allocated this one:
@@ -109,7 +114,7 @@ found:
         mappages(proc->pgdir,
                  (char*)va + (i * PGSIZE),
                  PGSIZE,
-                 shmem_entries[open_spot].pages[i],
+                 v2p(found_entry.pages[i]),
                  PTE_P|PTE_W);
     }
     switchuvm(proc);
