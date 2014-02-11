@@ -28,13 +28,15 @@ static void wakeup1(void *chan);
 
 //********* shared stuff ************
 // Initialize the shared memory lock
-void sharedinit()
+void 
+sharedinit()
 {
   initlock(&sTable.lock, "sTable");
 }
 
 // Allocate shared memory
-struct shared * sharedalloc()
+struct shared * 
+sharedalloc()
 {
   int i;
   void *smem;
@@ -51,7 +53,7 @@ struct shared * sharedalloc()
 
   // no free shared records left
   if (i == NSHARED) {
-    release(&sharedtable.lock);
+    release(&sTable.lock);
     return 0;
   }
 
@@ -63,13 +65,15 @@ struct shared * sharedalloc()
   }
   memset(smem, 0, PGSIZE);
 
-  share = &sharedtable.shared[i];
+  share = &sTable.shared[i];
   share->refcount = 1;
   share->page = smem;
   release(&sTable.lock);
 
   return share;
 }
+
+extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 //***********************************
 
@@ -206,6 +210,15 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
+
+  // shared mem
+  if (proc->shared) {
+    acquire(&sTable.lock);
+    proc->shared->refcount++;
+    mappages(np->pgdir, (char *)SHARED_V, PGSIZE, v2p(proc->shared->page), PTE_W|PTE_U);
+    np->shared = proc->shared;
+    release(&sTable.lock);
+  }
  
   pid = np->pid;
   np->state = RUNNABLE;
@@ -508,5 +521,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-
-
