@@ -4,9 +4,10 @@ Ring Buffer API
 
 struct ring is opaque for users of the API
 
-each ring has exactly one writer and exactly one reader
+each ring has exactly one writer process and exactly one reader
+process
 
-struct ring *ring_attach (uint token);
+struct ring *ring_attach (uint token)
 
   token is the name of the ring that we want to create or attach to;
   returns NULL on fail
