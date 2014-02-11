@@ -1,0 +1,53 @@
+=============================================================
+Ring Buffer API
+=============================================================
+
+struct ring is opaque for users of the API
+
+each ring has exactly one writer and exactly one reader
+
+struct ring *ring_attach (uint token);
+
+  token is the name of the ring that we want to create or attach to;
+  returns NULL on fail
+
+int ring_detach (uint token);
+
+  return 0 on successful detach, -1 otherwise
+
+void *write_reserve (ring *r, int bytes)
+
+  returns base of reserved region on success, NULL on failure to
+  reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
+  or for a number of bytes that exceeds the size of the ring buffer)
+
+void write_notify (ring *r, int bytes)
+
+void *read_reserve (ring *r, int bytes)
+
+  returns base of reserved region on success, NULL on failure to
+  reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
+  or for a number of bytes that exceeds the size of the ring buffer)
+
+void read_notify (ring *r, int bytes)
+
+=============================================================
+Ring Buffer Internals
+=============================================================
+
+ring size should be compile-time configurable, and must be power-of-2
+number of pages
+
+the ring should use the xv6 shmget() API to reserve shared memory
+
+head and tail pointers each go at the start of their own cache line in
+the shared memory page immediately following the ring
+
+head and tail are unsigned 32-bit integers
+
+struct ring {
+       unsigned tok;
+       void *buf;
+}
+
+=============================================================
