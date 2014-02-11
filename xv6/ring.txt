@@ -18,19 +18,33 @@ int ring_detach (uint token);
 
 void *write_reserve (ring *r, int bytes)
 
+  reserves bytes for writing
+
   returns base of reserved region on success, NULL on failure to
   reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
   or for a number of bytes that exceeds the size of the ring buffer)
 
 void write_notify (ring *r, int bytes)
 
+  notifies the reader that written bytes are available for consumption
+
+  it is an error to call write_notify with more bytes than have been
+  reserved
+
 void *read_reserve (ring *r, int bytes)
+
+  reserves bytes for reading
 
   returns base of reserved region on success, NULL on failure to
   reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
   or for a number of bytes that exceeds the size of the ring buffer)
 
 void read_notify (ring *r, int bytes)
+
+  notifies the writer that read bytes are available for production
+
+  it is an error to call read_notify with more bytes than have been
+  reserved
 
 =============================================================
 Ring Buffer Internals
