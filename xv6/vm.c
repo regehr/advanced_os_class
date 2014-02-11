@@ -42,7 +42,7 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-static pte_t *
+pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
@@ -67,7 +67,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
 // be page-aligned.
-static int
+int
 mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
   char *a, *last;
@@ -215,11 +215,40 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
+
+//Allocate n amount of bytes roudned up to a page at virtual address va
+int allocAt(pde_t *pgdir, uint size, unsigned long va){
+  // pte_t *table;
+  int i =0;
+  char *mem;
+  //check if memory addr is already scoped in.
+  // if((table=walkpgdir(pgdir, (void*)va, 0))!=0){
+  //  cprintf("Virtual address was already allocated!\n");
+  //  return -1;
+  // }
+  
+  uint pg_size = PGROUNDUP(size);
+  for(;i<pg_size; i+=PGSIZE){
+     mem = kalloc();
+    if(mem == 0){
+      cprintf("allocAt out of memory\n");
+      deallocuvm(pgdir, va+i, va);
+      return -1;
+    }
+    memset(mem,0,PGSIZE);
+    mappages(pgdir, (void *)(va+i),PGSIZE,v2p(mem),PTE_W|PTE_U); 
+  }
+  return 1;
+}
+
+
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
+
+  // cprintf("IN ALLOCUVM\n");
   char *mem;
   uint a;
 

@@ -1,3 +1,4 @@
+#include "mmu.h"
 struct buf;
 struct context;
 struct file;
@@ -142,6 +143,8 @@ char*           strncpy(char*, const char*, int);
 int             argint(int, int*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
+int             argulong(int, unsigned long*);
+int             arguint(int, uint*);
 int             fetchint(uint, int*);
 int             fetchstr(uint, char**);
 void            syscall(void);
@@ -161,6 +164,9 @@ void            uartintr(void);
 void            uartputc(int);
 
 // vm.c
+int             mappages(pde_t *, void *, uint , uint , int);
+int             allocAt(pde_t*, uint, unsigned long);
+pte_t*          walkpgdir(pde_t*,const void*, int);
 void            seginit(void);
 void            kvmalloc(void);
 void            vmenable(void);

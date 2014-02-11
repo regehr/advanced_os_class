@@ -1,3 +1,5 @@
+#include "param.h"
+#include "spinlock.h"
 // Segments in proc->gdt.
 #define NSEGS     7
 
@@ -66,9 +68,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int shmem_tok;               // Token for this process' shared memory region
-  char *startaddr;             // Virtual address of the start region of their shmem
-  uint size;                   // Size of the shared memory region
+  uint shmem_tok;               // Token for this process' shared memory region
+  unsigned long startaddr;             // Virtual address of the start region of their shmem
+  uint shmem_size;                   // Size of the shared memory region
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -76,3 +78,11 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+extern struct spinlock lock;
+
+struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
+
