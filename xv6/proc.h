@@ -7,7 +7,7 @@ struct cpu {
   struct context *scheduler;   // swtch() here to enter scheduler
   struct taskstate ts;         // Used by x86 to find stack for interrupt
   struct segdesc gdt[NSEGS];   // x86 global descriptor table
-  volatile uint started;       // Has the CPU started?
+  volatile uint started;        // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
   
@@ -51,7 +51,6 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-//********
 // The virtual address where shared memory appears, if requested
 #define SHARED_V 0x70000000
 
@@ -62,7 +61,6 @@ struct shared {
   int refcount;
   void *page; 
 };
-//********
 
 // Per-process state
 struct proc {
@@ -78,8 +76,8 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
+  struct shared *shared;       // Shared memory record (0 -> none)
   char name[16];               // Process name (debugging)
-  struct shared *shared        // Shared memory record
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -87,3 +85,4 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+//   (optionally) fixed-sized shared mem segment, 1 page @ 0x7000000
