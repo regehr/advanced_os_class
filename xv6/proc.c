@@ -73,8 +73,6 @@ sharedalloc()
   return share;
 }
 
-extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
-
 //***********************************
 
 void
