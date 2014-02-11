@@ -150,7 +150,7 @@ typedef uint pte_t;
 // Task state segment format
 struct taskstate {
   uint link;         // Old ts selector
-  uint esp0;         // Stack pointers and segment selectors
+  uint esp0;
   ushort ss0;        //   after an increase in privilege level
   ushort padding1;
   uint *esp1;

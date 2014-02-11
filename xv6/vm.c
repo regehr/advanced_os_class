@@ -33,10 +33,13 @@ seginit(void)
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
-  
+
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
+
+  
+
 }
 
 // Return the address of the PTE in page table pgdir
@@ -67,7 +70,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
 // be page-aligned.
-static int
+int
 mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
   char *a, *last;
@@ -124,7 +127,10 @@ static struct kmap {
  { (void*)DEVSPACE, DEVSPACE,      0,         PTE_W}, // more devices
 };
 
+
+
 // Set up kernel part of a page table.
+// map a page table to another. 
 pde_t*
 setupkvm(void)
 {
@@ -213,6 +219,43 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
       return -1;
   }
   return 0;
+}
+
+
+
+int
+initshmp(uint key, pde_t *pgdir)
+{
+  if(shmget_key == key)
+    {
+      
+    }
+}
+
+
+int
+allocAt(pde_t *pgdir, uint size, unsigned long address)
+{
+  char *mem;
+  uint a;
+
+  if(size >= KERNBASE)
+    return 0;
+  
+  size = PGROUNDUP(size);
+  for(; a < size; a += PGSIZE){
+    mem = kalloc();
+    if(mem == 0){
+      cprintf("allocuvm out of memory\n");
+      deallocuvm(pgdir, address+a, address);
+      return 0;
+    }
+    memset(mem, 0, PGSIZE);
+    mappages(pgdir, (void*)(a+address), PGSIZE, v2p(mem), PTE_W|PTE_U);
+  }
+  return 1;
+
+
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to

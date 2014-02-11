@@ -5,12 +5,8 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
-#include "spinlock.h"
 
-struct {
-  struct spinlock lock;
-  struct proc proc[NPROC];
-} ptable;
+
 
 static struct proc *initproc;
 
@@ -69,6 +65,11 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+
+  p->shm_key = 0;
+  p->start_address = 0;
+  p->shm_size = 0;
 
   return p;
 }
