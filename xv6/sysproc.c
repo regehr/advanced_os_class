@@ -122,15 +122,11 @@ sys_shmget(void)
 {
     // user args:
     int key, size;
-    if ((argint(0, &key) < 0) || (argint(1, &size) < 0))
-        return 0;
+    void* va;
+    if ((argint(0, &key) < 0) ||
+        (argint(1, &size) < 0) ||
+        (argptr(2, &va) < 0))
+        return -1;
 
-    void* page;
-    // TODO: use size
-    if ((page = getshm(key, size)) == 0)
-        return 0;
-
-    // Map page into user's page table:
-    mappages(proc->pgdir, SHMEM_V_LOC, PGSIZE, v2p(page), PTE_W|PTE_U);
-    return SHMEM_V_LOC;
+    return getshm(key, size, proc, va);
 }
