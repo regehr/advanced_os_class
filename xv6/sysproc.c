@@ -148,18 +148,23 @@ sys_shmget(void)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     if(p->sh_mem_token == *key) {
       create_new = 0;
-      if(!(page = walkpgdir(p->pgdir, p->start_address, 0))) {
+    }
+  }
+  int bytes = ((*size / 4096) + 1) * 4096;
+  int i = 0;
+  for(i = 0; i < bytes; i += 4096) {
+    if(create_new) {
+      page = kalloc();
+    } else {
+      if(!(page = walkpgdir(p->pgdir, p->start_address+i, 0))) {
         release(&ptable.lock);
         return 0;
       }
     }
-  }
-  if(create_new) {
-    page = kalloc();
-  }
-  if(!mappages(proc->pgdir, address, *size, v2p(page), *perms)) {
-    release(&ptable.lock);
-    return 0;
+    if(!mappages(proc->pgdir, address, *size, v2p(page), *perms)) {
+      release(&ptable.lock);
+      return 0;
+    }
   }
 
   proc->sh_mem_token  = *key;

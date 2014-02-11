@@ -10,5 +10,6 @@
 
 int main(void)
 {
+  shmget(1, 1, (void*)0xffff0000, 0);
   Exit(0);
 }

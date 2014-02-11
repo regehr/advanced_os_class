@@ -37,4 +37,4 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
-int shmget(uint key, uint size, void *address);
+int shmget(unsigned key, unsigned size, void *address, unsigned flags);
