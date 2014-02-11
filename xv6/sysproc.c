@@ -7,7 +7,6 @@
 #include "proc.h"
 #include "traps.h"
 
-
 int
 sys_fork(void)
 {
@@ -111,10 +110,28 @@ int sys_gettime(void)
   release(&tickslock);
   
   //ticks occur every 10ms
-  *msec = (ticks1 % 100);
+  *msec = 10 * (ticks1 % 100);
   *sec = (ticks1 / 100);
   
   return 0;
-  
+}
+
+extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+
+int
+sys_shared(void)
+{
+  struct sharedproc *sh;
+
+  if(proc->shproc)
+    return SHARED_ADDR;
+
+  sh = sharedalloc();
+  if(sh) {
+     proc->shproc = sh;
+     mappages(proc->pgdir, (char *)SHARED_ADDR, PGSIZE, v2p(sh->vpage), PTE_W|PTE_U);
+     return SHARED_ADDR;
+  } else
+      return 0;
 
 }

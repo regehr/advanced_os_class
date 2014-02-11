@@ -12,6 +12,12 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+// my shared struct
+struct {
+  struct spinlock lock;
+  struct sharedproc table[SHARED];
+} shtable;
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -24,6 +30,12 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+}
+
+void
+sharedinit(void) 
+{
+  initlock(&shtable.lock, "shtable");
 }
 
 //PAGEBREAK: 32
@@ -72,6 +84,38 @@ found:
 
   return p;
 }
+
+//shared alloc
+struct sharedproc *
+sharedalloc()
+{
+  int i;
+  void *mem;
+  struct sharedproc *sh;
+
+  // check for free pages in table
+  acquire(&shtable.lock);
+  for(i = 0; i < SHARED; i++)
+    if(shtable.table[i].nref == 0)
+      break;
+
+  mem = kalloc();
+
+  // is buffer full or out of memory?
+  if(i == SHARED || !mem) {
+    release(&shtable.lock);
+    return 0;
+  }
+
+  sh = &shtable.table[i];
+  sh->nref = 1;
+  sh->vpage = mem;
+  release(&shtable.lock);
+
+  return sh;
+}
+
+extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 //PAGEBREAK: 32
 // Set up first user process.
@@ -153,6 +197,14 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
+
+  if(proc->shproc) {
+     acquire(&shtable.lock);
+     proc->shproc->nref++;
+     mappages(np->pgdir, (char *)SHARED_ADDR, PGSIZE, v2p(proc->shproc->vpage), PTE_W|PTE_U);
+     np->shproc = proc->shproc;
+     release(&shtable.lock);
+  }
  
   pid = np->pid;
   np->state = RUNNABLE;
@@ -230,6 +282,17 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+
+	if(p->shproc) {
+           acquire(&shtable.lock);
+           p->shproc->nref--;
+           if(p->shproc->nref == 0)  // if no more references to memory, free page
+              kfree(p->shproc->vpage);
+
+           release(&shtable.lock);
+           p->shproc = 0;
+        }
+
         release(&ptable.lock);
         return pid;
       }
