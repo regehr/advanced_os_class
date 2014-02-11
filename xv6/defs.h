@@ -123,6 +123,7 @@ extern struct spinlock shmemlock;
 extern struct shmem_entry* shmem_entries;
 int             initshm(void);
 void*           getshm(int, int);
+#define SHMEM_V_LOC 0x70000000
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -183,6 +184,7 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+int             mappages(pde_t*, void* va, uint, uint, int);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

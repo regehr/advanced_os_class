@@ -120,11 +120,17 @@ int sys_gettime(void)
 int
 sys_shmget(void)
 {
-    if (shmem_entries == NULL)
-        if(initshm())
-            return -1;
+    // user args:
+    int key, size;
+    if ((argint(0, &key) < 0) || (argint(1, &size) < 0))
+        return 0;
 
-    // TODO: get pages and map them into user memory
+    void* page;
+    // TODO: use size
+    if ((page = getshm(key, size)) == 0)
+        return 0;
 
-    return 0;
+    // Map page into user's page table:
+    mappages(proc->pgdir, SHMEM_V_LOC, PGSIZE, v2p(page), PTE_W|PTE_U);
+    return SHMEM_V_LOC;
 }
