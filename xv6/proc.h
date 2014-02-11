@@ -67,7 +67,7 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   uint sh_mem_token;           // Shared memory token
-  char *start_address;         //
+  void *start_address;         //
   uint size;                   //
 };
 
@@ -76,3 +76,10 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+
+#include "spinlock.h"
+struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
