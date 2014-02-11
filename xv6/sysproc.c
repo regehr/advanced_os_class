@@ -122,11 +122,18 @@ sys_shmget(void)
 {
     // user args:
     int key, size;
-    void* va;
+    int va;
     if ((argint(0, &key) < 0) ||
-        (argint(1, &size) < 0) ||
-        (argptr(2, &va) < 0))
+        (argint(1, &va) < 0) ||
+        (argint(2, &size) < 0))
         return -1;
 
-    return getshm(key, size, proc, va);
+    // Do not let user try to get memory out of user-land:
+    if (va + size >= KERNBASE || va >= KERNBASE)
+        return -1;
+    // Do not let user request mapping to non-page aligned address:
+    if (va % PGSIZE != 0)
+        return -1;
+
+    return getshm(key, size, proc, (void*)va);
 }

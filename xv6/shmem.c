@@ -57,7 +57,7 @@ getshm(int key, int size, struct proc* proc, void* va)
     // Implementation decision: if someone requests some number of pages,
     // but they're actually going to share something already allocated: they
     // lose and just get access to the one already allocated.
-
+    
     // Compute # of pages rather than # of bytes:
     int pages = PGROUNDUP(size) / PGSIZE;
 
@@ -106,10 +106,13 @@ found:
     // For now, assume the call can't fail:
     for (i = 0; i < pages; i++)
     {
-        mappages(proc->pgdir, va, PGSIZE,
+        mappages(proc->pgdir,
+                 (char*)va + (i * PGSIZE),
+                 PGSIZE,
                  shmem_entries[open_spot].pages[i],
                  PTE_P|PTE_W);
     }
+    switchuvm(proc);
 
     release(&shmemlock);
     return 0;

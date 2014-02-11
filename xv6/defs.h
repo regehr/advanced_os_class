@@ -122,7 +122,7 @@ void            yield(void);
 extern struct spinlock shmemlock;
 extern struct shmem_entry* shmem_entries;
 int             initshm(void);
-void*           getshm(int, int);
+int             getshm(int, int, struct proc*, void*);
 #define SHMEM_V_LOC 0x70000000
 
 // swtch.S
