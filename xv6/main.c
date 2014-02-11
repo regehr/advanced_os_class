@@ -27,6 +27,8 @@ main(void)
   ioapicinit();    // another interrupt controller
   consoleinit();   // I/O devices & their interrupts
   uartinit();      // serial port
+  //***********
+  sharedinit();    // shared memory records
   pinit();         // process table
   tvinit();        // trap vectors
   binit();         // buffer cache
