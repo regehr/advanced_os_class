@@ -87,7 +87,6 @@ exec(char *path, char **argv)
   // this exec, so it's +1 then -1 => 0 change
   //******************
   if (proc->shared) {
-    extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
     mappages(pgdir, (char *)SHARED_V, PGSIZE, v2p(proc->shared->page), PTE_W|PTE_U);
   }
 
