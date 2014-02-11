@@ -117,6 +117,8 @@ int sys_gettime(void)
   return 0;
 }
 
+extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+
 int sys_shared(void)
 {
   struct shared *share;
@@ -127,7 +129,7 @@ int sys_shared(void)
   }
 
   share = sharedalloc();
-  if (sh) {
+  if (share) {
     proc->shared = share;
     mappages(proc->pgdir, (char *)SHARED_V, PGSIZE, v2p(share->page), PTE_W|PTE_U);
     return SHARED_V;
