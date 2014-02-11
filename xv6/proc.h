@@ -1,3 +1,4 @@
+#include "spinlock.h"
 // Segments in proc->gdt.
 #define NSEGS     7
 
@@ -29,6 +30,7 @@ extern int ncpu;
 // in thread libraries such as Linux pthreads.
 extern struct cpu *cpu asm("%gs:0");       // &cpus[cpunum()]
 extern struct proc *proc asm("%gs:4");     // cpus[cpunum()].proc
+
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
@@ -65,7 +67,10 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
-  char name[16];               // Process name (debugging)
+  char name[16];               // Process name debugging)
+  char *start_shared;          // virtual address
+  uint size;                   // size
+  uint token;                  // shared token
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -73,3 +78,8 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
