@@ -16,7 +16,7 @@ int ring_detach (uint token);
 
   return 0 on successful detach, -1 otherwise
 
-void *write_reserve (ring *r, int bytes)
+void *ring_write_reserve (ring *r, int bytes)
 
   reserves bytes for writing
 
@@ -24,14 +24,14 @@ void *write_reserve (ring *r, int bytes)
   reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
   or for a number of bytes that exceeds the size of the ring buffer)
 
-void write_notify (ring *r, int bytes)
+void ring_write_notify (ring *r, int bytes)
 
   notifies the reader that written bytes are available for consumption
 
   it is an error to call write_notify with more bytes than have been
   reserved
 
-void *read_reserve (ring *r, int bytes)
+void *ring_read_reserve (ring *r, int bytes)
 
   reserves bytes for reading
 
@@ -39,12 +39,20 @@ void *read_reserve (ring *r, int bytes)
   reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
   or for a number of bytes that exceeds the size of the ring buffer)
 
-void read_notify (ring *r, int bytes)
+void ring_read_notify (ring *r, int bytes)
 
   notifies the writer that read bytes are available for production
 
   it is an error to call read_notify with more bytes than have been
   reserved
+
+void ring_write (ring *r, void *buf, int bytes)
+void ring_read (ring *r, void *buf, int bytes)
+
+  these provide pipe-like semantics and are built on top of the
+  primitive operations
+
+  Question: should these be blocking operations?
 
 =============================================================
 Ring Buffer Internals
