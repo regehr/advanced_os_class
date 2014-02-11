@@ -111,10 +111,62 @@ int sys_gettime(void)
   release(&tickslock);
   
   //ticks occur every 10ms
-  *msec = (ticks1 % 100);
+  *msec = 10 * (ticks1 % 100);
   *sec = (ticks1 / 100);
   
   return 0;
   
 
 }
+
+pte_t * walkpgdir(pde_t *pgdir, const void *va, int alloc);
+int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+
+int
+sys_shmget(void)
+{
+  unsigned *key;
+  unsigned *size;
+  void *address;
+  int *perms;
+
+  if((argptr(0,(char **)&key, sizeof(unsigned)) < 0)   ||
+     (argptr(1,(char **)&size, sizeof(unsigned)) < 0)  ||
+     (argptr(2,(char **)&address, sizeof(void *)) < 0) ||
+     (argptr(3,(char **)&perms, sizeof(int)) < 0)) {
+    return -1;
+  }
+
+//  if(!walkpgdir(proc->pgdir, address, 0)) {
+//    return 0;
+//  }
+
+  int create_new = 1;
+  acquire(&ptable.lock);
+  void *page = 0;
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->sh_mem_token == *key) {
+      create_new = 0;
+      if(!(page = walkpgdir(p->pgdir, p->start_address, 0))) {
+        release(&ptable.lock);
+        return 0;
+      }
+    }
+  }
+  if(create_new) {
+    page = kalloc();
+  }
+  if(!mappages(proc->pgdir, address, *size, v2p(page), *perms)) {
+    release(&ptable.lock);
+    return 0;
+  }
+
+  proc->sh_mem_token  = *key;
+  proc->start_address = address;
+  proc->size          = *size;
+  release(&ptable.lock);
+
+  return 0;
+}
+
