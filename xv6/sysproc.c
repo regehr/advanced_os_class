@@ -116,16 +116,17 @@ int sys_gettime(void)
   return 0;
 }
 
-extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 int
 sys_shared(void)
 {
   struct sharedproc *sh;
 
+  // if process is already using shared, return the address
   if(proc->shproc)
     return SHARED_ADDR;
 
+  // allocate shared memory and map it to a physical address
   sh = sharedalloc();
   if(sh) {
      proc->shproc = sh;

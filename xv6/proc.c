@@ -107,6 +107,7 @@ sharedalloc()
     return 0;
   }
 
+  // set shared table reference count and page
   sh = &shtable.table[i];
   sh->nref = 1;
   sh->vpage = mem;
@@ -115,7 +116,7 @@ sharedalloc()
   return sh;
 }
 
-extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+
 
 //PAGEBREAK: 32
 // Set up first user process.
