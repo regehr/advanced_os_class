@@ -117,8 +117,6 @@ int sys_gettime(void)
   return 0;
 }
 
-extern void mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
-
 int sys_shared(void)
 {
   struct shared *share;
