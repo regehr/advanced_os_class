@@ -138,7 +138,7 @@ sys_shmget(void)
   
   struct proc *p;
   pte_t *pte;
-  uint pa;
+  uint physical_address;
   int i =0;
   
 
@@ -190,23 +190,23 @@ sys_shmget(void)
   
   size = PGROUNDUP(p->shmem_size);
   for(;i<size; i+=PGSIZE){
-    pte = walkpgdir((pde_t*)p->pgdir, ((char *)p->startaddr), 0);
+    pte = walkpgdir((pde_t*)p->pgdir, ((char *)p->start_address), 0);
     if(!pte)
       {
 	cprintf("Major error in shmget trying to map already shared mem\n");
 	return -1;
     }
-    if((*pte & PTE_P)!= 0)
+    if(*pte!= 0)
       {
-	pa = PTE_ADDR(*pte);
+	physical_address = PTE_ADDR(*pte);
 
-	if(pa == 0){
+	if(physical_address == 0){
 
-	  cprintf("Major error in shmget physical addr was 0\n");
+	  cprintf("error physical address is 0\n");
 
 	  return -1;
 	}
-	mappages(proc->pgdir,(char*)va_ptr+i,PGSIZE,pa,PTE_W|PTE_U);
+	mappages(proc->pgdir, (char*)start_address + i, PGSIZE, physical_address, PTE_W|PTE_U);
       }
   }
   switchuvm(proc);
