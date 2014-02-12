@@ -12,6 +12,10 @@ struct ring *ring_attach (uint token)
   token is the name of the ring that we want to create or attach to;
   returns NULL on fail
 
+int ring_size (uint token)
+
+  returns total capacity of the named ring in bytes
+
 int ring_detach (uint token);
 
   return 0 on successful detach, -1 otherwise
@@ -23,6 +27,12 @@ void *ring_write_reserve (ring *r, int bytes)
   returns base of reserved region on success, NULL on failure to
   reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
   or for a number of bytes that exceeds the size of the ring buffer)
+
+  NOTE: reserved regions may wrap around the end of the ring
+
+  consecutive successful calls to ring_write_reserve are guaranteed to
+  return pointers to consecutive regions of memory except that
+  wrapping will occur at the end of the ring
 
 void ring_write_notify (ring *r, int bytes)
 
@@ -38,6 +48,12 @@ void *ring_read_reserve (ring *r, int bytes)
   returns base of reserved region on success, NULL on failure to
   reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
   or for a number of bytes that exceeds the size of the ring buffer)
+
+  NOTE: reserved regions may wrap around the end of the ring
+
+  consecutive successful calls to ring_read_reserve are guaranteed to
+  return pointers to consecutive regions of memory except that
+  wrapping will occur at the end of the ring
 
 void ring_read_notify (ring *r, int bytes)
 
