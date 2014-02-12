@@ -4,13 +4,16 @@ Ring Buffer API
 
 struct ring is opaque for users of the API
 
-each ring has exactly one writer process and exactly one reader
-process
+behavior of ring buffers is undefined if there is more than one
+concurrent reader or writer process
 
 struct ring *ring_attach (uint token)
 
   token is the name of the ring that we want to create or attach to;
   returns NULL on fail
+
+  initially, zero bytes are reserved for reading and zero bytes are
+  reserved for writing
 
 int ring_size (uint token)
 
@@ -24,43 +27,27 @@ void *ring_write_reserve (ring *r, int bytes)
 
   reserves bytes for writing
 
-  returns base of reserved region on success, NULL on failure to
-  reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
-  or for a number of bytes that exceeds the size of the ring buffer)
-
-  NOTE: reserved regions may wrap around the end of the ring
-
-  consecutive successful calls to ring_write_reserve are guaranteed to
-  return pointers to consecutive regions of memory except that
-  wrapping will occur at the end of the ring
+  see common notes about reservation functions below
 
 void ring_write_notify (ring *r, int bytes)
 
   notifies the reader that written bytes are available for consumption
 
-  it is an error to call write_notify with more bytes than have been
-  reserved
+  it is an error to call write_notify with more bytes than are
+  currently reserved
 
 void *ring_read_reserve (ring *r, int bytes)
 
   reserves bytes for reading
 
-  returns base of reserved region on success, NULL on failure to
-  reserve, and (void *)-1 on getting a bad request (not 4-byte aligned
-  or for a number of bytes that exceeds the size of the ring buffer)
-
-  NOTE: reserved regions may wrap around the end of the ring
-
-  consecutive successful calls to ring_read_reserve are guaranteed to
-  return pointers to consecutive regions of memory except that
-  wrapping will occur at the end of the ring
+  see common notes about reservation functions below
 
 void ring_read_notify (ring *r, int bytes)
 
   notifies the writer that read bytes are available for production
 
-  it is an error to call read_notify with more bytes than have been
-  reserved
+  it is an error to call read_notify with more bytes than are
+  currently reserved for reading
 
 void ring_write (ring *r, void *buf, int bytes)
 void ring_read (ring *r, void *buf, int bytes)
@@ -69,6 +56,23 @@ void ring_read (ring *r, void *buf, int bytes)
   primitive operations
 
   Question: should these be blocking operations?
+
+common notes about ring reservation functions:
+
+  these return a pointer to the start of the reserved region on
+  success, NULL on failure to reserve
+
+  behavior is undefined upon trying to reserve more than the ring's
+  capacity
+
+  behavior is undefined unless the byte count is a multiple of 4
+
+  note that a reserved region may wrap around the end of the ring
+
+  consecutive successful calls to ring_write_reserve or
+  ring_read_reserve are guaranteed to return pointers to consecutive
+  regions of memory except that wrapping will occur at the end of the
+  ring
 
 =============================================================
 Ring Buffer Internals
