@@ -112,10 +112,10 @@ found:
     for (i = 0; i < pages; i++)
     {
         mappages(proc->pgdir,
-                 (char*)va + (i * PGSIZE),
+                 (char*)(va + (i * PGSIZE)),
                  PGSIZE,
                  v2p(found_entry.pages[i]),
-                 PTE_P|PTE_W);
+                 PTE_U|PTE_W);
     }
     switchuvm(proc);
 

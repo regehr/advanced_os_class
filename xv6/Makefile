@@ -173,6 +173,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_gettime\
+	_testshmget\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
