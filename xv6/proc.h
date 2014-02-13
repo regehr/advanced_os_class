@@ -1,5 +1,5 @@
 #include "spinlock.h"
-#inculde "param.h"
+#include "param.h"
 // Segments in proc->gdt.
 #define NSEGS     7
 
@@ -69,8 +69,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   uint shm_key;
-  usigned long start_address;
-  unit shm_size; 
+  unsigned long start_address;
+  uint shm_size; 
 
 };
 

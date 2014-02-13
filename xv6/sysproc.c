@@ -146,16 +146,22 @@ sys_shmget(void)
      (argptr(1,(char*)&start_address, sizeof(unsigned long)) < 0)|| 
      (argptr(2,(char*)&size, sizeof(unsigned long)) < 0))
     {
-      cprintf("wrong paramaters to shmget");
+      cprintf("wrong paramaters to shmget\n");
       return -1;
     }
+
+
+  if(start_address >= KERNBASE && (start_address+size) >= KERNBASE && (start_address % PGSIZE)!=0){
+    cprintf("Address outside of bounds\n");
+    return -1;
+  }
 
   //setting up shared mem
   if(size != 0)
     {
       if(allocAt(proc->pgdir, size, start_address) < 0)
 	{
-	  cprintf("error in creating shared memory shmget");
+	  cprintf("error in creating shared memory shmget\n");
 	  return -1;
 	} 
       proc->shm_key = key;
@@ -167,9 +173,7 @@ sys_shmget(void)
   //becasue size is 0 we are looking for a matching key. 
   //we don't have any garentee that the key will be
   // as we don't know what order the process write in. 
-
   acquire(&ptable.lock);
-
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       if(p != UNUSED)
@@ -193,19 +197,17 @@ sys_shmget(void)
     pte = walkpgdir((pde_t*)p->pgdir, ((char *)p->start_address), 0);
     if(!pte)
       {
-	cprintf("Major error in shmget trying to map already shared mem\n");
+	cprintf("Error pte error in shmget.\n");
 	return -1;
     }
     if(*pte!= 0)
       {
 	physical_address = PTE_ADDR(*pte);
-
-	if(physical_address == 0){
-
-	  cprintf("error physical address is 0\n");
-
-	  return -1;
-	}
+	if(physical_address == 0)
+	  {
+	    cprintf("Error physical address is 0.\n");
+	    return -1;
+	  }
 	mappages(proc->pgdir, (char*)start_address + i, PGSIZE, physical_address, PTE_W|PTE_U);
       }
   }

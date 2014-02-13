@@ -23,7 +23,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int gettime(unsigned long *msec, unsigned long *sec);
-int shmget(uint key, pde_t *pgtable, uint size);
+int shmget(uint key, unsigned long start_address, uint size);
 
 
 // ulib.c

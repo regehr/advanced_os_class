@@ -1,4 +1,4 @@
-sstruct buf;
+struct buf;
 struct context;
 struct file;
 struct inode;

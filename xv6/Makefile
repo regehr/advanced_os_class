@@ -1,4 +1,4 @@
-SOBJS = \
+OBJS = \
 	bio.o\
 	console.o\
 	exec.o\
@@ -172,7 +172,7 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_gettime\
-	_shmget\
+	_testshmget\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
