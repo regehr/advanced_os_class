@@ -26,14 +26,14 @@ int main(void){
     }
     test1 =(char*) 0x0000B000;
     for(;j<128;j++){
-      printf(1,"%c",*test1);
+      printf(1,"%c\n",*test1);
       test1++;
     }
     printf(1,"Child exiting\n");
   }
 
   while(1){
-    printf(1,"sleeping\n");
+    //printf(1,"sleeping\n");
     sleep(25);
   }
  

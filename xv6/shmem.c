@@ -22,6 +22,7 @@ struct shmem_entry
 {
     uint key;
     uint refcnt;
+    uint pgcnt;
     void* pages[MAX_SHMEM_PAGES];
 };
 
@@ -72,13 +73,12 @@ getshm(int key, int size, struct proc* proc, void* va)
     // or if a slot still exists to allocate:
     int i;
     int open_spot = -1;
-    struct shmem_entry found_entry;
     for (i = 0; i < MAX_SHMEM_ENTRIES; i++)
     {
         // Already allocated this one:
         if (shmem_entries[i].key == key)
         {
-            found_entry = shmem_entries[i];
+            open_spot = i;
             goto found;
         }
             
@@ -103,19 +103,20 @@ getshm(int key, int size, struct proc* proc, void* va)
             if ((shmem_entries[open_spot].pages[i] = kalloc()) == 0)
                 goto bad;
     }
-    found_entry = shmem_entries[open_spot];
+    shmem_entries[open_spot].pgcnt = pages;
 
 found:
-    found_entry.refcnt += 1;
-    
+    shmem_entries[open_spot].refcnt += 1;
+
     // For now, assume the call can't fail:
-    for (i = 0; i < pages; i++)
+    for (i = 0; i < shmem_entries[open_spot].pgcnt; i++)
     {
         mappages(proc->pgdir,
                  (char*)(va + (i * PGSIZE)),
                  PGSIZE,
-                 v2p(found_entry.pages[i]),
+                 v2p(shmem_entries[open_spot].pages[i]),
                  PTE_U|PTE_W);
+        //cprintf("B\n");
     }
     switchuvm(proc);
 
