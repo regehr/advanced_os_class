@@ -226,7 +226,7 @@ shmget_allocuvm(pde_t *pgdir, char * start, uint size)
   if((int)(a + new_size) >= KERNBASE)
     return 0;
 
-  for(; a < new_size; a += PGSIZE){
+  for(; a < (a + new_size); a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
