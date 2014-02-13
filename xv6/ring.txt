@@ -94,3 +94,37 @@ struct ring {
 }
 
 =============================================================
+ring invariants and properties
+
+all math operations below are modulo 2^32
+
+S is the ring size in bytes, a compile-time constant
+H is the head reference, a shared free-running unsigned 32-bit integer
+T is the tail reference, a shared free-running unsigned 32-bit integer
+RH is the reserve head, a non-shared free-running unsigned 32-bit integer
+RT is the reserve tail, a non-shared free-running unsigned 32-bit integer
+S must be a power of 2 and also less than 2^32
+H - T < S
+free space for writer = S - (RH - T)
+reserved space for writer = RH - H
+data available = H - T
+mask = S-1
+base = ring buffer base address
+
+write_reserve(n):
+	if n > free space for writer return fail
+        oldRH = RH
+	RH += n
+	return base + (oldRH & mask)
+
+write_notify_all():
+	H = RH
+
+TODO: 
+
+- handle the case where reserved space wraps
+
+- ensure concurrency safety under the assumption of a single reader
+  and a single writer
+
+=============================================================
