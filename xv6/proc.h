@@ -68,7 +68,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name debugging)
-  char *start_shared;          // virtual address
+  char * start_shared;          // virtual address
   uint size;                   // size
   uint token;                  // shared token
 };

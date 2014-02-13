@@ -23,7 +23,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int gettime(unsigned long *msec, unsigned long *sec);
-int shmget(uint , char *, uint);
+int shmget(uint tok, char * addr, uint len);
 
 // ulib.c
 int stat(char*, struct stat*);

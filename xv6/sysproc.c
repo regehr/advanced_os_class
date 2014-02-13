@@ -125,52 +125,57 @@ int sys_gettime(void)
 int sys_shmget(void)
 {
   struct proc *p;
-  uint * token;
+  uint token;
   char * addr;
-  uint * len;
+  uint len;
   pte_t * pte;
-  argptr(0, (char **) &token, sizeof(uint));
-  argptr(1, &addr, sizeof(char));
-  argptr(2, (char **) &len, sizeof(uint)); 
+  argint(0, (int *)&token);
+  argint(1, (int *)&addr);
+  argint(2, (int *)&len);
   // check if allowed address
   //  if(!(pte = walkpgdir(proc->pgdir, (void *) addr, 0)))
   //  return -1;
-  if(*token == 0) // tokens must be greater than or equal to 0
-    return -1;
   // case 1: have unused token, but len is 0, return negative 1
+  cprintf("in shmget");
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) // loop through process table
-    if(p->token == *token) // looking for process with token
-      goto found;
-  if(*len == 0)
+    {
+      if(p->token == token) // looking for process with token
+	goto found;
+    }
+  cprintf("len is: %d\n", len);
+  if(len == 0)
     {
       release(&ptable.lock);
       return -1; // case 1
     }
-  if(!shmget_allocuvm(p->pgdir, addr, *len))
+  if(!shmget_allocuvm(proc->pgdir, addr, len))
     {
       release(&ptable.lock);
       return -1; // couldn't allocate space
     }
-  proc->size = *len;
-  proc->token = *token;
+  proc->size = len;
+  proc->token = token;
   proc->start_shared = addr;
   release(&ptable.lock);
+  switchuvm(proc);
+  cprintf("i offically don't know where the problem is\n");
   return 0;
  found:
-  if(*len != 0)
+  if(len != 0)
     {
       release(&ptable.lock);
       return -1; // token is already being used
     }
   // another process has been set up with this token, map those pages to this process
-  pte_t * pa = walkpgdir(p->pgdir, p->start_shared, 0);
-  if(mappages(proc->pgdir, addr, p->size, PTE_ADDR(*pa), PTE_U | PTE_W) < 0)
+  pte = walkpgdir(p->pgdir, p->start_shared, 0);
+  if(mappages(proc->pgdir, addr, p->size, PTE_ADDR(*pte), PTE_U | PTE_W) < 0)
     return -1;
   proc->size = p->size;
-  proc->token = *token;
+  proc->token = token;
   proc->start_shared = addr;
   release(&ptable.lock);
+  switchuvm(proc);
   return 0;
 
 }

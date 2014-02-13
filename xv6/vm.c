@@ -220,20 +220,21 @@ shmget_allocuvm(pde_t *pgdir, char * start, uint size)
 {
   char *mem;
   uint a;
-  
-  if((int)(start + size) >= KERNBASE)
+  uint new_size;
+  a = PGROUNDUP((int)start);
+  new_size = PGROUNDUP(size);
+  if((int)(a + new_size) >= KERNBASE)
     return 0;
 
-  a = PGROUNDUP((int)start);
-  for(; a < size; a += PGSIZE){
+  for(; a < new_size; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
-      deallocuvm(pgdir, (int)(start + size), (int)start);
+      deallocuvm(pgdir, (int)(a + new_size), (int)a);
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    mappages(pgdir, (char *)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
   }
   return size;
 }
