@@ -1,3 +1,6 @@
+#ifndef VM_C
+#define VM_C
+
 #include "param.h"
 #include "types.h"
 #include "defs.h"
@@ -45,7 +48,7 @@ seginit(void)
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-static pte_t *
+pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
@@ -222,22 +225,11 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 }
 
 
-
-int
-initshmp(uint key, pde_t *pgdir)
-{
-  if(shmget_key == key)
-    {
-      
-    }
-}
-
-
 int
 allocAt(pde_t *pgdir, uint size, unsigned long address)
 {
   char *mem;
-  uint a;
+  uint a = 0;
 
   if(size >= KERNBASE)
     return 0;
@@ -419,3 +411,4 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   }
   return 0;
 }
+#endif

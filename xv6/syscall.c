@@ -23,6 +23,25 @@ fetchint(uint addr, int *ip)
   return 0;
 }
 
+int
+fetchuint(uint addr, uint *up)
+{
+ if(addr >= proc->sz || addr+4 > proc->sz)
+    return -1;
+  *up = *(uint*)(addr);
+  return 0; 
+}
+
+int 
+fetchulong(uint addr, unsigned long *ptr)
+{
+  if(addr >= proc->sz || addr+4 > proc->sz)
+    return -1;
+  *ptr = *(unsigned long*)(addr);
+  return 0;
+
+}
+
 // Fetch the nul-terminated string at addr from the current process.
 // Doesn't actually copy the string - just sets *pp to point at it.
 // Returns length of string, not including nul.
@@ -46,6 +65,18 @@ int
 argint(int n, int *ip)
 {
   return fetchint(proc->tf->esp + 4 + 4*n, ip);
+}
+
+int 
+arguint(int n, uint *up)
+{
+  return fetchuint(proc->tf->esp + 4 + 4*n, up);
+}
+
+int
+argulong(int n, unsigned long *ptr)
+{
+  return fetchulong(proc->tf->esp + 4 + 4*n, ptr);
 }
  
 // Fetch the nth word-sized system call argument as a pointer
@@ -124,6 +155,7 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_gettime] sys_gettime,
+[SYS_shmget]  sys_shmget,
 };
 
 void

@@ -5,6 +5,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "spinlock.h"
 
 
 
@@ -67,9 +68,9 @@ found:
   p->context->eip = (uint)forkret;
 
 
-  p->shm_key = 0;
-  p->start_address = 0;
-  p->shm_size = 0;
+  p->shm_key=0;
+  p->start_address=0;
+  p->shm_size=0;
 
   return p;
 }
@@ -263,7 +264,8 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
+    
+    //cprintf("in the scheduler\n");
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -382,10 +384,19 @@ static void
 wakeup1(void *chan)
 {
   struct proc *p;
+  //struct proc temp;
+  //int i=0;
+  
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
+   if(p->state == SLEEPING && p->chan == chan){
+     p->state = RUNNABLE;
+     //  //place it at the head of the ptable 
+       // temp = ptable.proc[0];
+     // ptable.proc[0] = *p;
+     //ptable.proc[i] = temp;
+  }
+  // i++;
 }
 
 // Wake up all processes sleeping on chan.

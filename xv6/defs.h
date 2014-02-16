@@ -140,6 +140,8 @@ char*           strncpy(char*, const char*, int);
 
 // syscall.c
 int             argint(int, int*);
+int             arguint(int, uint*);
+int             argulong(int, unsigned long*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
 int             fetchint(uint, int*);

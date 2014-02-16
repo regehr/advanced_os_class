@@ -6,7 +6,6 @@
 #include "mmu.h"
 #include "proc.h"
 #include "traps.h"
-#include "vm.c"
 
 int
 sys_fork(void)
@@ -134,7 +133,7 @@ sys_shmget(void)
   uint key;
   unsigned long start_address;
   uint size;
-  bool found = false; 
+  int found = 0; 
   
   struct proc *p;
   pte_t *pte;
@@ -142,9 +141,9 @@ sys_shmget(void)
   int i =0;
   
 
-  if((argptr(0,(char*)&key, sizeof(uint)) < 0) ||
-     (argptr(1,(char*)&start_address, sizeof(unsigned long)) < 0)|| 
-     (argptr(2,(char*)&size, sizeof(unsigned long)) < 0))
+  if((arguint(0, &key) < 0) ||
+     (argulong(1, &start_address) < 0)|| 
+     (arguint(2, &size) < 0))
     {
       cprintf("wrong paramaters to shmget\n");
       return -1;
@@ -166,7 +165,7 @@ sys_shmget(void)
 	} 
       proc->shm_key = key;
       proc->start_address = start_address;
-      proc->size; 
+      proc->shm_size = size; 
       switchuvm(proc);
       return 0; 
     }
@@ -180,7 +179,7 @@ sys_shmget(void)
 	{
 	  if(p->shm_key == key)
 	    {
-	      found = true;
+	      found = 1;
 	      release(&ptable.lock);
 	      break;
 	    }
@@ -192,7 +191,7 @@ sys_shmget(void)
       return -1;
     }
   
-  size = PGROUNDUP(p->shmem_size);
+  size = PGROUNDUP(p->shm_size);
   for(;i<size; i+=PGSIZE){
     pte = walkpgdir((pde_t*)p->pgdir, ((char *)p->start_address), 0);
     if(!pte)
