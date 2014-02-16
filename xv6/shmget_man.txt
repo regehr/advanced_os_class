@@ -1,0 +1,16 @@
+NAME
+	shmget - allocates a shared memory segment
+
+SYNOPSIS
+	int shmget(uint token, char * addr, uint size);
+
+	if this region overlaps with a region used for 
+	any other purpose the use is undefined
+
+DESCRIPTION
+	shmget() returns -1 on failure, returns 0 on success
+	
+
+	List of recommended address ranges:
+
+	
