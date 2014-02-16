@@ -1,4 +1,4 @@
-OBJS = \
+ OBJS = \
 	bio.o\
 	console.o\
 	exec.o\
