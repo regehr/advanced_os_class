@@ -237,7 +237,8 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    int res = mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    assert (res==0);
   }
   return newsz;
 }
