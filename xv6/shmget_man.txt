@@ -8,8 +8,21 @@ SYNOPSIS
 	any other purpose the use is undefined
 
 DESCRIPTION
-	shmget() returns -1 on failure, returns 0 on success
+	shmget() returns -1 on failure, returns 0 on success.
+	On success shmget() creates a shared memory segment
+	in the calling process, allocating at least one page.
+	addr must be a page aligned virtual address; size is
+	the number of bytes the user wants to share.  If size
+	is less than a page, a page will be allocated; pages
+	allocated will be size rounded up to the nearest number
+	of pages.	
 	
+	If the user wants to share a memory segment already set
+	up by another process, call shmget with the correct token
+	and a size of zero.  
+
+	When a new shared memory segment is created, its contents
+	are initialized to zero values.  
 
 	List of recommended address ranges:
 
