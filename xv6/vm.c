@@ -238,7 +238,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     }
     memset(mem, 0, PGSIZE);
     int res = mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
-    assert (res==0);
+    //assert (res==0);
+    while(res) {
+      cprintf("vm: Res invalid");
+    }
   }
   return newsz;
 }

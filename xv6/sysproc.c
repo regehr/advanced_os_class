@@ -118,3 +118,9 @@ int sys_gettime(void)
   
 
 }
+
+int
+sys_shmget(void)
+{
+  return 0;
+}
