@@ -24,10 +24,42 @@ DESCRIPTION
 	When a new shared memory segment is created, its contents
 	are initialized to zero values.  
 
+
+	TOKEN:
+	Identifying uint which specifies which memory location 
+	you wish to either map in or associate with a memory location
+
+	ADDR:
+	Virtual address you wish to map in to your process. The data
+	within that virtual address will be accessable by anyone with
+	the same token. 
+
+	SIZE:
+	Size of the buffer. Size must be modulo PGSIZE(4096 bytes)
+
 	List of recommended address ranges:
-	0x01000000 -> 0x0FFFFFFF
+	0x10000000 -> 0x7FFFFFFF
 	Using the upper range of the process space will allow malloc
-	to work correctly. 0x10000000 and above is reserved for 
-	kernel, I think.  
+	to work correctly. 0x80000000 and above is reserved for the 
+	kernel, I think.
+	
+	Note: when allocating at the top of the memory range 
+	i.e 7FFF -- you have to be wary about how large your 
+	buffer is.  If you're not careful your buffer will extend
+	into the 0x8 region, causing a page fault or remap trap.
+	
+	RETURNS:
+	Returns -1 on failure, 0 on succes. 
+	Failures include: 
+
+	Using a token that has already been allocated to a
+	shared memory region. 
+
+	Sending size that is not modulo PGSIZE
+	
+	Sending address that is in kernel land
+	
+	
+	
 
 	
