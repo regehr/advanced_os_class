@@ -23,6 +23,25 @@ fetchint(uint addr, int *ip)
   return 0;
 }
 
+int
+fetchuint(uint addr, uint *up){
+  if(addr >= proc->sz || addr+4 > proc->sz){
+    return -1;
+  }
+  *up = *(uint *)(addr);
+  return 0;
+}
+
+//fetch the ulong
+unsigned long
+fetchulong(uint addr, unsigned long *ptr){
+  if(addr >= proc->sz || addr+4 > proc->sz){
+    return -1;
+  }
+  *ptr = *(unsigned long*)(addr);
+  return 0;
+}
+
 // Fetch the nul-terminated string at addr from the current process.
 // Doesn't actually copy the string - just sets *pp to point at it.
 // Returns length of string, not including nul.
@@ -41,11 +60,22 @@ fetchstr(uint addr, char **pp)
   return -1;
 }
 
+int
+arguint(int n, uint *up){
+  return fetchuint(proc->tf->esp +4 +4*n, up);
+}
+
 // Fetch the nth 32-bit system call argument.
 int
 argint(int n, int *ip)
 {
   return fetchint(proc->tf->esp + 4 + 4*n, ip);
+}
+
+int
+argulong(int n, unsigned long *ptr)
+{
+  return fetchulong(proc->tf->esp + 4 + 4*n, ptr);
 }
  
 // Fetch the nth word-sized system call argument as a pointer

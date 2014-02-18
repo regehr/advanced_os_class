@@ -139,10 +139,14 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
+int             arguint(int, uint *);
 int             argint(int, int*);
+int             argulong(int, unsigned long *);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
 int             fetchint(uint, int*);
+int             fetchuint(uint,uint*);
+unsigned long   fetchulong(uint,unsigned long *);
 int             fetchstr(uint, char**);
 void            syscall(void);
 

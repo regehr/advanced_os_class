@@ -125,52 +125,58 @@ int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 int
 sys_shmget(void)
 {
-  uint *key;
-  uint *size;
-  char *address;
+  uint key;
+  uint size;
+  unsigned long address;
 
-  if((argptr(0,(char **)&key, sizeof(uint)) < 0)   ||
-     (argptr(2,(char **)&size, sizeof(uint)) < 0)  ||
-     (argptr(1,(char **)&address, sizeof(char *)) < 0)) {
+  if((arguint(0,&key) < 0)   ||
+     (argulong(1,&address) < 0) ||
+     (arguint(2,&size) < 0)) {
+    cprintf("shmget: can't get variables.\n");
     return -1;
   }
-
-  cprintf("I ran\n");
-
-//  if(!walkpgdir(proc->pgdir, address, 0)) {
-//    return 0;
-//  }
 
   int create_new = 1;
   acquire(&ptable.lock);
   void *page = 0;
   struct proc *p;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    if(p->sh_mem_token == *key) {
-      create_new = 0;
+  if(size == 0) {
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if(p->state != UNUSED && p->sh_mem_token == key) {
+        create_new = 0;
+      }
     }
   }
-  int bytes = ((*size / 4096) + 1) * 4096;
+  int bytes = PGROUNDUP(size);
   int i = 0;
-  for(i = 0; i < bytes; i += 4096) {
+  for(i = 0; i < bytes; i += PGSIZE) {
     if(create_new) {
-      page = kalloc();
+      if(!(page = kalloc())) {
+        cprintf("shmget: Can't kalloc page\n");
+      }
     } else {
-      if(!(page = walkpgdir(p->pgdir, p->start_address+i, 0))) {
+      if(!(page = walkpgdir(p->pgdir, (char *)p->start_address+i, 0))) {
         release(&ptable.lock);
+        cprintf("shmget: Can't get existing page.\n");
         return -1;
       }
     }
-    if(!mappages(proc->pgdir, address, *size, v2p(page), 0)) {
+    memset(page, 0, PGSIZE);
+    mappages(proc->pgdir, (char*)(address+i), PGSIZE, v2p(page), PTE_W|PTE_U);
+/*
+    if(!mappages(proc->pgdir, (char*)(address+i), PGSIZE, v2p(page), PTE_W|PTE_U)) {
       release(&ptable.lock);
-      return -1;
+      cprintf("shmget: can't mappages\n");
+      return -10;
     }
+*/
   }
 
-  proc->sh_mem_token  = *key;
+  proc->sh_mem_token  = key;
   proc->start_address = address;
-  proc->size          = *size;
+  proc->size          = size;
   release(&ptable.lock);
+  switchuvm(proc);
 
   return 0;
 }

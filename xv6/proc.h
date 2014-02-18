@@ -67,7 +67,7 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   uint sh_mem_token;           // Shared memory token
-  void *start_address;         //
+  unsigned long start_address;         //
   uint size;                   //
 };
 
