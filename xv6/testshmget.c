@@ -4,11 +4,11 @@
 int main(void){
   int i=0;
   int j=0;
-  if(shmget(12,0x01000000,20480)<0){
+  if(shmget(12,0x7FFF0000,20480)<0){
     printf(1,"error\n");
   }
 
-  char *test = (char*) 0x01000000;
+  char *test = (char*) 0x7FFF0000;
   char *temp = test;
   for(;i<20479; i++){
     *test = 'A';
@@ -21,11 +21,11 @@ int main(void){
     //child
     sleep(100);
     char *test1;
-    if(shmget(12,0x02000000,0) < 0){
+    if(shmget(12,0x20000000,0) < 0){
       printf(1,"Child error");
       exit();
     }
-    test1 =(char*) 0x02000000;
+    test1 =(char*) 0x20000000;
     for(;j<20479;j++){
       if(*test1 != 'A'){
 	printf(1,"Fail\n");
