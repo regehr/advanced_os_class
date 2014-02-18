@@ -25,5 +25,9 @@ DESCRIPTION
 	are initialized to zero values.  
 
 	List of recommended address ranges:
+	0x01000000 -> 0x0FFFFFFF
+	Using the upper range of the process space will allow malloc
+	to work correctly. 0x10000000 and above is reserved for 
+	kernel, I think.  
 
 	
