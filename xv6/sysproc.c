@@ -125,17 +125,17 @@ int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 int
 sys_shmget(void)
 {
-  unsigned *key;
-  unsigned *size;
-  void *address;
-  int *perms;
+  uint *key;
+  uint *size;
+  char *address;
 
-  if((argptr(0,(char **)&key, sizeof(unsigned)) < 0)   ||
-     (argptr(1,(char **)&size, sizeof(unsigned)) < 0)  ||
-     (argptr(2,(char **)&address, sizeof(void *)) < 0) ||
-     (argptr(3,(char **)&perms, sizeof(int)) < 0)) {
+  if((argptr(0,(char **)&key, sizeof(uint)) < 0)   ||
+     (argptr(2,(char **)&size, sizeof(uint)) < 0)  ||
+     (argptr(1,(char **)&address, sizeof(char *)) < 0)) {
     return -1;
   }
+
+  cprintf("I ran\n");
 
 //  if(!walkpgdir(proc->pgdir, address, 0)) {
 //    return 0;
@@ -158,12 +158,12 @@ sys_shmget(void)
     } else {
       if(!(page = walkpgdir(p->pgdir, p->start_address+i, 0))) {
         release(&ptable.lock);
-        return 0;
+        return -1;
       }
     }
-    if(!mappages(proc->pgdir, address, *size, v2p(page), *perms)) {
+    if(!mappages(proc->pgdir, address, *size, v2p(page), 0)) {
       release(&ptable.lock);
-      return 0;
+      return -1;
     }
   }
 

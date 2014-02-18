@@ -165,7 +165,7 @@ UPROGS=\
 	_ls\
 	_mkdir\
 	_pipetest\
-	_shmgettest\
+	_testshmget\
 	_rm\
 	_sh\
 	_stressfs\

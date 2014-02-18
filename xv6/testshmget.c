@@ -4,7 +4,7 @@
 int main(void){
   int i=0;
   int j=0;
-  if(shmget(12,0x0000A000,4096)<0){
+  if(shmget(12,(char *)0x0000A000,4096)<0){
     printf(1,"error\n");
   }
 
@@ -20,7 +20,8 @@ int main(void){
   if(fork()==0){
     //child
     char *test1;
-    if(shmget(12,0x0000B000,0) < 0){
+    if(shmget(12,(char *)0x0000B000,0) < 0){
+
       printf(1,"Child error");
       exit();
     }

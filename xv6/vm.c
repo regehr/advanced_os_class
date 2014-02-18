@@ -238,7 +238,9 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     }
     memset(mem, 0, PGSIZE);
     int res = mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
-    assert (res==0);
+    if (res!=0) {
+        while(1);
+    }
   }
   return newsz;
 }
