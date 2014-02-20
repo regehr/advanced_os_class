@@ -13,6 +13,20 @@
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
 
+int
+fetchuint(uint addr, uint *up){
+  if(addr >= proc->sz || addr+4 > proc->sz){
+    return -1;
+  }
+  *up = *(uint *)(addr);
+  return 0;
+}
+
+int 
+arguint(int n, uint *up){
+  return fetchuint(proc->tf->esp +4 +4*n, up);
+}
+
 // Fetch the int at addr from the current process.
 int
 fetchint(uint addr, int *ip)
@@ -99,7 +113,7 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_gettime(void);
-extern int sys_shared(void);
+extern int sys_shmget(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -124,7 +138,7 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_gettime] sys_gettime,
-[SYS_shared]  sys_shared,
+[SYS_shmget]  sys_shmget,
 };
 
 void
