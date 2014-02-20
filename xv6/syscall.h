@@ -22,4 +22,4 @@
 #define SYS_close  21
 #define SYS_gettime 22
 
-#define SYS_shared 23
+#define SYS_shmget 23
