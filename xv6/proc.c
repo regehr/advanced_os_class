@@ -5,75 +5,14 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
-#include "spinlock.h"
-
-struct {
-  struct spinlock lock;
-  struct proc proc[NPROC];
-} ptable;
 
 static struct proc *initproc;
-
-// Shared memory table
-struct {
-  struct spinlock lock;
-  struct shared shared[NSHARED];
-} sTable;
 
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
-
-//********* shared stuff ************
-// Initialize the shared memory lock
-void 
-sharedinit()
-{
-  initlock(&sTable.lock, "sTable");
-}
-
-// Allocate shared memory
-struct shared * 
-sharedalloc()
-{
-  int i;
-  void *smem;
-  struct shared *share;
-  
-  // get the lock
-  acquire(&sTable.lock);
-  for (i = 0; i < NSHARED; i++) {
-    if (sTable.shared[i].refcount == 0) {
-      // found a free one
-      break;
-    }
-  }
-
-  // no free shared records left
-  if (i == NSHARED) {
-    release(&sTable.lock);
-    return 0;
-  }
-
-  smem = kalloc();
-  // Kalloc failed
-  if (!smem) {
-    release(&sTable.lock);
-    return 0;
-  }
-  memset(smem, 0, PGSIZE);
-
-  share = &sTable.shared[i];
-  share->refcount = 1;
-  share->page = smem;
-  release(&sTable.lock);
-
-  return share;
-}
-
-//***********************************
 
 void
 pinit(void)
