@@ -180,4 +180,3 @@ sys_shmget(void)
 
   return 0;
 }
-
