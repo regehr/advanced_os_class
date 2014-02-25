@@ -11,8 +11,16 @@ int main(void){
 
   char *test = (char*) 0x7FFF0000;
   char *temp = test;
-  for(;i<20479; i++){
+  for(;i<4096; i++){
     *test = 'A';
+    test++;
+  }
+  for(;i<8192; i++){
+    *test = 'B';
+    test++;
+  }
+  for(;i<20479;i++){
+    *test = 'C';
     test++;
   }
   *test = '\0';
@@ -27,9 +35,21 @@ int main(void){
       exit();
     }
     test1 =(char*) 0x20000000;
-    for(;j<20479;j++){
+    for(;j<4096;j++){
       if(*test1 != 'A'){
-	printf(1,"Fail\n");
+	printf(1,"Fail on Page 1\n");
+      }
+      test1++;
+    }
+    for(;j<8192;j++){
+      if(*test1 != 'B'){
+	printf(1,"Fail on page2\n");
+      }
+      test1++;
+    }
+    for(;j<20479;j++){
+      if(*test1 != 'C'){
+	printf(1,"Fail on page 3 -> 5\n");
       }
       test1++;
     }

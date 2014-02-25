@@ -143,7 +143,7 @@ int sys_shmget(void)
  found:
   size = PGROUNDUP(p->shmem_size);
   for(;i<size; i+=PGSIZE){
-    pte = walkpgdir((pde_t*)p->pgdir, ((char *)p->startaddr), 0);
+     pte = walkpgdir((pde_t*)p->pgdir, ((char *)p->startaddr+i), 0);
     if(!pte){
       cprintf("Major error in shmget trying to map already shared mem\n");
       return -1;
@@ -153,7 +153,7 @@ int sys_shmget(void)
       if(pa == 0){
 	cprintf("Major error in shmget physical addr was 0\n");
 	return -1;
-      }
+	}
       mappages(proc->pgdir,(char*)va_ptr+i,PGSIZE,pa,PTE_W|PTE_U);
     }
   }
