@@ -23,9 +23,9 @@ int ring_detach (uint token);
 
   return 0 on successful detach, -1 otherwise
 
-void *ring_write_reserve (ring *r, int bytes)
+ring ring_write_reserve (ring *r, int bytes)
 
-  reserves bytes for writing
+  reserves bytes for writing, can preform short reserve
 
   see common notes about reservation functions below
 
@@ -36,9 +36,9 @@ void ring_write_notify (ring *r, int bytes)
   it is an error to call write_notify with more bytes than are
   currently reserved
 
-void *ring_read_reserve (ring *r, int bytes)
+ring ring_read_reserve (ring *r, int bytes)
 
-  reserves bytes for reading
+  reserves bytes for reading, can preform short reserve
 
   see common notes about reservation functions below
 
@@ -59,7 +59,8 @@ void ring_read (ring *r, void *buf, int bytes)
 
 common notes about ring reservation functions:
 
-  these return a pointer to the start of the reserved region on
+  these return a ring containing a pointer to the start of
+  the reserved region and the amount of bites reserved on
   success, NULL on failure to reserve
 
   behavior is undefined upon trying to reserve more than the ring's
@@ -114,15 +115,16 @@ base = ring buffer base address
 write_reserve(n):
 	if n > free space for writer return fail
         oldRH = RH
-	RH += n
+    if RH%S < N:
+        RH += S-(RH%S)
+    else:
+	    RH += n
 	return base + (oldRH & mask)
 
 write_notify_all():
 	H = RH
 
 TODO: 
-
-- handle the case where reserved space wraps
 
 - ensure concurrency safety under the assumption of a single reader
   and a single writer
