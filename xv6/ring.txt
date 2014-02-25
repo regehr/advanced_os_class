@@ -23,7 +23,7 @@ int ring_detach (uint token);
 
   return 0 on successful detach, -1 otherwise
 
-ring ring_write_reserve (ring *r, int bytes)
+ring_res ring_write_reserve (ring *r, int bytes)
 
   reserves bytes for writing, can preform short reserve
 
@@ -36,7 +36,7 @@ void ring_write_notify (ring *r, int bytes)
   it is an error to call write_notify with more bytes than are
   currently reserved
 
-ring ring_read_reserve (ring *r, int bytes)
+ring_res ring_read_reserve (ring *r, int bytes)
 
   reserves bytes for reading, can preform short reserve
 
@@ -94,6 +94,11 @@ struct ring {
        void *buf;
 }
 
+struct_res ring {
+        unsigned size;
+        void *buf;
+}
+
 =============================================================
 ring invariants and properties
 
@@ -113,16 +118,16 @@ mask = S-1
 base = ring buffer base address
 
 write_reserve(n):
-	if n > free space for writer return fail
+    if n > free space for writer return fail
         oldRH = RH
     if RH%S < N:
         RH += S-(RH%S)
     else:
-	    RH += n
-	return base + (oldRH & mask)
+        RH += n
+    return base + (oldRH & mask)
 
 write_notify_all():
-	H = RH
+     H = RH
 
 TODO: 
 
