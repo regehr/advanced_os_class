@@ -128,6 +128,8 @@ int sys_shmget(void)
   uint token;
   char * addr;
   uint len;
+  uint sz;
+  uint i;
   pte_t * pte;
   argint(0, (int *)&token);
   argint(1, (int *)&addr);
@@ -136,19 +138,18 @@ int sys_shmget(void)
   //  if(!(pte = walkpgdir(proc->pgdir, (void *) addr, 0)))
   //  return -1;
   // case 1: have unused token, but len is 0, return negative 1
-  cprintf("in shmget");
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) // loop through process table
     {
       if(p->token == token) // looking for process with token
 	goto found;
-    }
-  cprintf("len is: %d\n", len);
+    } 
   if(len == 0)
     {
       release(&ptable.lock);
       return -1; // case 1
     }
+  cprintf("right before shmget\n");
   if(!shmget_allocuvm(proc->pgdir, addr, len))
     {
       release(&ptable.lock);
@@ -168,14 +169,52 @@ int sys_shmget(void)
       return -1; // token is already being used
     }
   // another process has been set up with this token, map those pages to this process
-  pte = walkpgdir(p->pgdir, p->start_shared, 0);
-  if(mappages(proc->pgdir, addr, p->size, PTE_ADDR(*pte), PTE_U | PTE_W) < 0)
-    return -1;
+  sz = PGROUNDUP(p->size);
+  for(i=0; (uint)i<sz; i += PGSIZE)
+    {
+      pte = walkpgdir(p->pgdir, p->start_shared+i, 0);
+      if(!pte)
+	{
+	  cprintf("error\n");
+	  release(&ptable.lock);
+	  return -1;
+	}
+      if(*pte & PTE_P)
+	{
+	  if(mappages(proc->pgdir, addr+i, PGSIZE, PTE_ADDR(*pte), PTE_U | PTE_W) < 0)
+	    {
+	      release(&ptable.lock);
+	      return -1;
+	    }
+	}
+      else
+	{
+	  release(&ptable.lock);
+	  return -1;	
+	}
+    }
   proc->size = p->size;
   proc->token = token;
   proc->start_shared = addr;
   release(&ptable.lock);
   switchuvm(proc);
   return 0;
+
+  /*
+  char *a, *last;
+  pte_t *pte;
+  
+  a = (char*)PGROUNDDOWN((uint)va);
+  last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
+  for(;;){
+    if((pte = walkpgdir(pgdir, a, 1)) == 0)
+      return -1;
+    if(*pte & PTE_P)
+      panic("remap");
+    *pte = pa | perm | PTE_P;
+    if(a == last)
+      break;
+    a += PGSIZE;
+    pa += PGSIZE; */
 
 }

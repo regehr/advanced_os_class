@@ -221,13 +221,15 @@ shmget_allocuvm(pde_t *pgdir, char * start, uint size)
   char *mem;
   uint a;
   uint new_size;
+  uint temp;
   a = PGROUNDUP((int)start);
+  temp = a;
   new_size = PGROUNDUP(size);
   if((int)(a + new_size) >= KERNBASE)
     return 0;
-
-  for(; a < (a + new_size); a += PGSIZE){
+  for(; a < (temp + new_size); a += PGSIZE){
     mem = kalloc();
+    cprintf("just called kalloc a: %x\n", a);
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, (int)(a + new_size), (int)a);
