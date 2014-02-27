@@ -4,13 +4,13 @@
 int main(void){
   int i=0;
   int j=0;
-  if(shmget(12,0x0000A000,4096)<0){
+  if(shmget(12,0x7FFF0000,20480)<0){
     printf(1,"error\n");
   }
 
-  char *test = (char*) 0x0000A000;
+  char *test = (char*) 0x7FFF0000;
   char *temp = test;
-  for(;i<128; i++){
+  for(;i<20479; i++){
     *test = 'A';
     test++;
   }
@@ -19,24 +19,23 @@ int main(void){
 
   if(fork()==0){
     //child
+    sleep(100);
     char *test1;
-    if(shmget(12,0x0000B000,0) < 0){
+    if(shmget(12,0x20000000,0) < 0){
       printf(1,"Child error");
       exit();
     }
-    test1 =(char*) 0x0000B000;
-    for(;j<128;j++){
-      printf(1,"%c",*test1);
+    test1 =(char*) 0x20000000;
+    for(;j<20479;j++){
+      if(*test1 != 'A'){
+	printf(1,"Fail\n");
+      }
       test1++;
     }
-    printf(1,"Child exiting\n");
+    printf(1,"Child exiting with success!\n");
   }
 
-  while(1){
-    printf(1,"sleeping\n");
-    sleep(25);
-  }
- 
+  wait();
   /*  int test1[15];
   int * test = malloc(4096);
   printf(1,"test is %p, %x, %d\n",test,test,test);
