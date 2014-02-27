@@ -11,8 +11,8 @@
 #define NULL 0
 #endif
 
-#define MAX_SHMEM_PAGES 14       // Largest number of pages requestable by a process to share with others
-#define MAX_SHMEM_ENTRIES 200    // Total number of shared memory instances we can allocate
+#define MAX_SHMEM_PAGES 126    // Largest number of pages requestable by a process to share with others
+#define MAX_SHMEM_ENTRIES 6    // Total number of shared memory instances we can allocate
 // NOTE: sizeof(shmem_entry) * MAX_SHMEM_ENTRIES needs to be less than 4096
 // (so it can fit on a page) To that end, ensure: 
 //  (2+MAX_SHMEM_PAGES) * 4 * MAX_SHMEM_ENTRIES < 4096
