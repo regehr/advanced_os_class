@@ -5,10 +5,14 @@
 #define NULL 0
 #endif
 
+#ifndef MIN
+#define MIN(x,y) ((x)<(y) ? (x) : (y))
+#endif
+
 // We'll have 64 pages allocated for our ring, excluding
 // the extra page used for our purposes
 #define RING_SIZE 262144
-#define ALLOC_SIZE = (RING_SIZE+4096)
+#define ALLOC_SIZE (RING_SIZE+4096)
 #define RING_SPACE (RING_SIZE>>2)
 
 // Hard coded virtual address I'd like to map my shmget
@@ -25,7 +29,7 @@ struct ring *ring_attach(uint token)
     if(shmget(token, START_ADDR, ALLOC_SIZE) < 0)
         return NULL;
     struct ring* ret = malloc(sizeof(struct ring));
-    if (ring == NULL)
+    if (ret == NULL)
         return NULL;
 
     ret->tok = token;
@@ -54,12 +58,13 @@ int ring_detach(uint token)
 }
 
 #define MASK (RING_SPACE-1)
-#define WRITE_FREE_SPACE (RING_SPACE-((*write_res_ptr)-(*read_ptr)))
-#define READ_FREE_SPACE ((*write_ptr)-(*read_res_ptr))
-#define WRITE_TO_END (RING_SPACE-((*write_res_ptr)&MASK))
-#define READ_TO_END (RING_SPACE-((*read_res_ptr)&MASK))
-#define RESERVED_WRITE ((*write_res_ptr)-(*write_ptr))
-#define RESERVED_READ ((*read_res_ptr)-(*read_ptr))
+#define BUF(r) ((int*)(r->buf))
+#define WRITE_FREE_SPACE(r) (RING_SPACE-(BUF(r)[WRITE_RES])-(BUF(r)[READ]))
+#define READ_FREE_SPACE(r) ((BUF(r)[WRITE])-(BUF(r)[READ_RES]))
+#define WRITE_TO_END(r) (RING_SPACE-((BUF(r)[WRITE_RES])&MASK))
+#define READ_TO_END(r) (RING_SPACE-((BUF(r)[READ_RES])&MASK))
+#define RESERVED_WRITE(r) ((BUF(r)[WRITE_RES])-(BUF(r)[WRITE]))
+#define RESERVED_READ(r) ((BUF(r)[READ_RES])-(BUF(r)[READ]))
 
 struct ring_res ring_write_reserve(struct ring *r, int bytes)
 {
@@ -70,17 +75,16 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
     //  1) The space from write_res to read
     //  2) The space from write_res to the end of the buffer
     //  3) The requested number of bytes
-    int ret_size = MIN(MIN(bytes, WRITE_TO_END), WRITE_FREE_SPACE);
-    int* tmp = (int*)(r->buf);
+    int ret_size = MIN(MIN(bytes, WRITE_TO_END(r)), WRITE_FREE_SPACE(r));
 
     // Setup return struct
     struct ring_res ret =
     {
         ret_size << 2,
-        tmp + tmp[WRITE_RES]
+        BUF(r) + BUF(r)[WRITE_RES]
     };
 
-    tmp[WRITE_RES] += ret_size;
+    BUF(r)[WRITE_RES] += ret_size;
 
     return ret;
 }
@@ -91,15 +95,14 @@ void ring_write_notify(struct ring *r, int bytes)
     bytes = bytes - (bytes & 0x3);
 
     // TODO: return error code? For now, just print bad message and exit
-    if (bytes > RESERVED_WRITE)
+    if (bytes > RESERVED_WRITE(r))
     {
         printf(1, "ERROR - Requested to write-notify too many bytes\n");
         exit();
     }
 
     // Increment write head:
-    int* tmp = (int*)(r->buf);
-    tmp[WRITE] += (bytes >> 2);
+    BUF(r)[WRITE] += (bytes >> 2);
 }
 
 struct ring_res ring_read_reserve(struct ring *r, int bytes)
@@ -111,17 +114,16 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
     //  1) The space from read_res to write
     //  2) The space from read_res to the end of the buffer
     //  3) The requested number of bytes
-    int ret_size = MIN(MIN(bytes, READ_TO_END), READ_FREE_SPACE);
-    int* tmp = (int*)(r->buf);
+    int ret_size = MIN(MIN(bytes, READ_TO_END(r)), READ_FREE_SPACE(r));
 
     // Setup return struct
     struct ring_res ret =
     {
         ret_size << 2,
-        tmp + tmp[READ_RES]
+        BUF(r) + BUF(r)[READ_RES]
     };
 
-    tmp[READ_RES] += ret_size;
+    BUF(r)[READ_RES] += ret_size;
 
     return ret;
 }
@@ -132,15 +134,14 @@ void ring_read_notify(struct ring *r, int bytes)
     bytes = bytes - (bytes & 0x3);
 
     // TODO: return error code? For now, just print bad message and exit
-    if (bytes > RESERVED_READ)
+    if (bytes > RESERVED_READ(r))
     {
         printf(1, "ERROR - Requested to read-notify too many bytes\n");
         exit();
     }
 
     // Increment write head:
-    int* tmp = (int*)(r->buf);
-    tmp[READ] += (bytes >> 2);
+    BUF(r)[READ] += (bytes >> 2);
 }
 
 void ring_write(struct ring *r, void *buf, int bytes)
