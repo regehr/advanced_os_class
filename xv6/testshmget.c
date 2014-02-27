@@ -1,6 +1,7 @@
 #include "types.h"
 #include "user.h"
 
+
 int main(void){
   int i=0;
   int j=0;
@@ -21,7 +22,8 @@ int main(void){
     //child
     sleep(100);
     char *test1;
-    if(shmget(12,0x20000000,0) < 0){
+
+    if(shmget(12,(char *)0x20000000,0) < 0){
       printf(1,"Child error");
       exit();
     }
