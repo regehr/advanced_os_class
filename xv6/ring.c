@@ -24,6 +24,15 @@
 #define WRITE (READ_RES+1)
 #define WRITE_RES (WRITE+1)
 
+#define MASK (RING_SPACE-1)
+#define BUF(r) ((volatile uint*)((r)->buf))
+#define WRITE_FREE_SPACE(r) (RING_SPACE-(BUF(r)[WRITE_RES])-(BUF(r)[READ]))
+#define READ_FREE_SPACE(r) ((BUF(r)[WRITE])-(BUF(r)[READ_RES]))
+#define WRITE_TO_END(r) (RING_SPACE-((BUF(r)[WRITE_RES])&MASK))
+#define READ_TO_END(r) (RING_SPACE-((BUF(r)[READ_RES])&MASK))
+#define RESERVED_WRITE(r) ((BUF(r)[WRITE_RES])-(BUF(r)[WRITE]))
+#define RESERVED_READ(r) ((BUF(r)[READ_RES])-(BUF(r)[READ]))
+
 struct ring *ring_attach(uint token)
 {
     if(shmget(token, START_ADDR, ALLOC_SIZE) < 0)
@@ -36,11 +45,10 @@ struct ring *ring_attach(uint token)
     ret->buf = (void*)START_ADDR;
     // Initially all ptrs in the ring point to the
     // starting position:
-    int* tmp = (int*)(ret->buf);
-    tmp[READ]      = 0;
-    tmp[READ_RES]  = 0;
-    tmp[WRITE]     = 0;
-    tmp[WRITE_RES] = 0;
+    BUF(ret)[READ]      = 0;
+    BUF(ret)[READ_RES]  = 0;
+    BUF(ret)[WRITE]     = 0;
+    BUF(ret)[WRITE_RES] = 0;
 
     return ret;
 }
@@ -57,14 +65,6 @@ int ring_detach(uint token)
     return 0;
 }
 
-#define MASK (RING_SPACE-1)
-#define BUF(r) ((int*)(r->buf))
-#define WRITE_FREE_SPACE(r) (RING_SPACE-(BUF(r)[WRITE_RES])-(BUF(r)[READ]))
-#define READ_FREE_SPACE(r) ((BUF(r)[WRITE])-(BUF(r)[READ_RES]))
-#define WRITE_TO_END(r) (RING_SPACE-((BUF(r)[WRITE_RES])&MASK))
-#define READ_TO_END(r) (RING_SPACE-((BUF(r)[READ_RES])&MASK))
-#define RESERVED_WRITE(r) ((BUF(r)[WRITE_RES])-(BUF(r)[WRITE]))
-#define RESERVED_READ(r) ((BUF(r)[READ_RES])-(BUF(r)[READ]))
 
 struct ring_res ring_write_reserve(struct ring *r, int bytes)
 {
