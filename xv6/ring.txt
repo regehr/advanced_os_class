@@ -94,7 +94,7 @@ struct ring {
        void *buf;
 }
 
-struct_res ring {
+struct ring_res {
         unsigned size;
         void *buf;
 }
