@@ -30,4 +30,8 @@ SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
 SYSCALL(gettime)
+<<<<<<< HEAD
 SYSCALL(shmget)
+=======
+SYSCALL(shmget)
+>>>>>>> master

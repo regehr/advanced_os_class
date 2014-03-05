@@ -5,12 +5,17 @@
 int main(void){
   int i=0;
   int j=0;
+<<<<<<< HEAD
   if(shmget(12,0x7FFF0000,20480)<0){
+=======
+  if(shmget(12,(char *)0x7FFF0000,20480)<0){
+>>>>>>> master
     printf(1,"error\n");
   }
 
   char *test = (char*) 0x7FFF0000;
   char *temp = test;
+<<<<<<< HEAD
   for(;i<4096; i++){
     *test = 'A';
     test++;
@@ -23,6 +28,12 @@ int main(void){
     *test = 'C';
     test++;
   }
+=======
+  for(;i<20479; i++){
+    *test = 'A';
+    test++;
+  }
+>>>>>>> master
   *test = '\0';
   test = temp;
 
@@ -30,11 +41,16 @@ int main(void){
     //child
     sleep(100);
     char *test1;
+<<<<<<< HEAD
     if(shmget(12,0x20000000,0) < 0){
+=======
+    if(shmget(12,(char *)0x20000000,0) < 0){
+>>>>>>> master
       printf(1,"Child error");
       exit();
     }
     test1 =(char*) 0x20000000;
+<<<<<<< HEAD
     for(;j<4096;j++){
       if(*test1 != 'A'){
 	printf(1,"Fail on Page 1\n");
@@ -50,6 +66,11 @@ int main(void){
     for(;j<20479;j++){
       if(*test1 != 'C'){
 	printf(1,"Fail on page 3 -> 5\n");
+=======
+    for(;j<20479;j++){
+      if(*test1 != 'A'){
+	printf(1,"Fail\n");
+>>>>>>> master
       }
       test1++;
     }
