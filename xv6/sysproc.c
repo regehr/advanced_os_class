@@ -111,14 +111,13 @@ int sys_gettime(void)
   release(&tickslock);
   
   //ticks occur every 10ms
-  *msec = (ticks1 % 100);
+  *msec = 10 * (ticks1 % 100);
   *sec = (ticks1 / 100);
   
   return 0;
   
 
 }
-
 
 // returns -1 if something goes wrong
 // returns 0 otherwise, assumes address is page aligned
@@ -216,5 +215,4 @@ int sys_shmget(void)
       break;
     a += PGSIZE;
     pa += PGSIZE; */
-
 }
