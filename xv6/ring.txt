@@ -34,7 +34,7 @@ void ring_write_notify (ring *r, int bytes)
   notifies the reader that written bytes are available for consumption
 
   it is an error to call write_notify with more bytes than are
-  currently reserved
+  currently reserved (it is undefined behavior)
 
 ring_res ring_read_reserve (ring *r, int bytes)
 
@@ -47,11 +47,13 @@ void ring_read_notify (ring *r, int bytes)
   notifies the writer that read bytes are available for production
 
   it is an error to call read_notify with more bytes than are
-  currently reserved for reading
+  currently reserved for reading (it is undefined behavior)
 
-void ring_write (ring *r, void *buf, int bytes)
-void ring_read (ring *r, void *buf, int bytes)
-
+int ring_write (ring *r, void *buf, int bytes)
+int ring_read (ring *r, void *buf, int bytes)
+    
+    return -1 on failure, return 0 on success
+    
   these provide pipe-like semantics and are built on top of the
   primitive operations
 
