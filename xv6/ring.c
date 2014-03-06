@@ -1,6 +1,11 @@
 #include "ring.h"
 #include "user.h"
 
+// TODO:
+//   - Can't null out ptrs at attach time (writer may reserve/write before reader attaches)
+//   - A few spec changes (not exiting on notify bad, read returns int, etc.)
+
+
 #ifndef NULL
 #define NULL 0
 #endif
@@ -153,15 +158,15 @@ void ring_write(struct ring *r, void *buf, int bytes)
         // So, I was defining another function that did this in terms of integers, and suddenly
         // mkfs was failing on building (seriously - make stopped working!) and I can't figure
         // what could be going on. For now, we'll copy by bytes even though that's terrible. :|
-        memmove(write_res.buf, buf, write_res.size << 2);
-        bytes -= (write_res.size << 2);
-        ring_write_notify(r, write_res.size << 2);
+        memmove(write_res.buf, buf, write_res.size);
+        bytes -= (write_res.size);
+        ring_write_notify(r, write_res.size);
     }
 }
 
 void ring_read(struct ring *r, void *buf, int bytes)
 {
     struct ring_res read_res = ring_read_reserve(r, bytes);
-    memmove(buf, read_res.buf, read_res.size << 2);
-    ring_read_notify(r, read_res.size << 2);
+    memmove(buf, read_res.buf, read_res.size);
+    ring_read_notify(r, read_res.size);
 }
