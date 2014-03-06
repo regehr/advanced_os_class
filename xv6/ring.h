@@ -3,6 +3,16 @@
 
 #include "types.h"
 
+#define RING_SIZE 0x7F000
+#define PGSIZE 0x1000
+
+unsigned int * RING_START = 0x7FF00000;
+
+unsigned int * READ_HEAD = 0x7FF7F000;
+unsigned int * WRITE_HEAD = 0x7FF7F004;
+unsigned int * WR_HEAD = 0x7FF7F008;
+unsigned int * RR_HEAD = 0X7FF7F00C;
+
 struct ring {
   unsigned tok;
   void *buf;
