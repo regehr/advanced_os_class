@@ -6,12 +6,12 @@
 #define RING_SIZE 0x7F000
 #define PGSIZE 0x1000
 
-unsigned int * RING_START = 0x7FF00000;
+volatile unsigned int * RING_START = 0x7FF00000;
 
-unsigned int * READ_HEAD = 0x7FF7F000;
-unsigned int * WRITE_HEAD = 0x7FF7F004;
-unsigned int * WR_HEAD = 0x7FF7F008;
-unsigned int * RR_HEAD = 0X7FF7F00C;
+volatile unsigned int * READ_HEAD = 0x7FF7F000;
+volatile unsigned int * WRITE_HEAD = 0x7FF7F040;
+volatile unsigned int * WR_HEAD = 0x7FF7F080;
+volatile unsigned int * RR_HEAD = 0X7FF7F0C0;
 
 struct ring {
   unsigned tok;

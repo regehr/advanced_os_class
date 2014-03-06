@@ -56,7 +56,8 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
       size = bytes;
     }
   
-  // fix ret
+  ret.size = size;
+  ret.buf = RING_START + (oldWR & mask);
   return ret;
 }
 
@@ -74,22 +75,25 @@ void ring_write_notify(struct ring *r, int bytes)
 struct ring_res ring_read_reserve(struct ring *r, int bytes)
 {
   unsigned int free = *WRITE_HEAD - *READ_HEAD;
-  unsigned int size;
+  unsigned int size = 0;
   unsigned int oldRR = *RR_HEAD;
   unsigned int mask = RING_SIZE - 1;
+  struct ring_res ret = {size, NULL};
   if(bytes > free)
-    return NULL; //fail? 
+    return ret; //fail? 
   if((*RR_HEAD % RING_SIZE) < bytes)
     {
       size = (RING_SIZE - (*WR_HEAD % RING_SIZE));
       *RR_HEAD += (RING_SIZE - (*RR_HEAD % RING_SIZE));
     }
-  ELSE
+  else
     {
       *WR_HEAD += bytes;
       size = bytes;
     }
-  struct ring_res ret = {size, RING_START + (oldRR & mask)};
+
+  ret.size = size;
+  ret.buf = RING_START + (oldRR & mask);
   return ret;
 }
 
