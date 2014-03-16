@@ -106,7 +106,7 @@ getshm(int key, int size, struct proc* proc, void* va)
             // Zero out page if allocced:
             int j;
             for (j = 0; j < PGSIZE; j++)
-                shmem_entries[open_spot].pages[i][j] = 0;
+                ((char*)shmem_entries[open_spot].pages[i])[j] = 0;
         }
     }
     shmem_entries[open_spot].pgcnt = pages;

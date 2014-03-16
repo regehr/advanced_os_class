@@ -70,12 +70,11 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
     // Round bytes down so it is 0 modulo 4
     bytes = bytes - (bytes & 0x3);
     
-    struct ring_res ret;
     
     // If there is insufficient space in the buffer to allocate, reserve 0 instead:
     if (bytes > WRITE_FREE_SPACE(r))
     {
-        ret = { 0, NULL };
+        struct ring_res ret = { 0, NULL };
         return ret;
     }
     
@@ -83,7 +82,7 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
     int ret_size = MIN(bytes, WRITE_TO_END(r));
 
     // Setup return struct
-    ret =
+    struct ring_res ret =
     {
         ret_size << 2,
         (int*)(BUF(r) + BUF(r)[WRITE_RES])
@@ -108,12 +107,10 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
     // Round bytes down so it is 0 modulo 4
     bytes = bytes - (bytes & 0x3);
     
-    struct ring_res ret;
-    
     // If there is insufficient space in the buffer to allocate, reserve 0 instead:
     if (bytes > READ_FREE_SPACE(r))
     {
-        ret = { 0, NULL };
+        struct ring_res ret = { 0, NULL };
         return ret;
     }
 
@@ -121,7 +118,7 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
     int ret_size = MIN(bytes, READ_TO_END(r));
 
     // Setup return struct
-    ret =
+    struct ring_res ret =
     {
         ret_size << 2,
         (int*)(BUF(r) + BUF(r)[READ_RES])
@@ -141,7 +138,7 @@ void ring_read_notify(struct ring *r, int bytes)
     BUF(r)[READ] += (bytes >> 2);
 }
 
-void ring_write(struct ring *r, void *buf, int bytes)
+int ring_write(struct ring *r, void *buf, int bytes)
 {
     while (bytes > 0)
     {
@@ -154,11 +151,14 @@ void ring_write(struct ring *r, void *buf, int bytes)
         bytes -= (write_res.size);
         ring_write_notify(r, write_res.size);
     }
+
+    return bytes;
 }
 
-void ring_read(struct ring *r, void *buf, int bytes)
+int ring_read(struct ring *r, void *buf, int bytes)
 {
     struct ring_res read_res = ring_read_reserve(r, bytes);
     memmove(buf, read_res.buf, read_res.size);
     ring_read_notify(r, read_res.size);
+    return read_res.size;
 }
