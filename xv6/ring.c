@@ -48,12 +48,6 @@ struct ring *ring_attach(uint token)
 
     ret->tok = token;
     ret->buf = (void*)START_ADDR;
-    // Initially all ptrs in the ring point to the
-    // starting position:
-    BUF(ret)[READ]      = 0;
-    BUF(ret)[READ_RES]  = 0;
-    BUF(ret)[WRITE]     = 0;
-    BUF(ret)[WRITE_RES] = 0;
 
     return ret;
 }
@@ -75,15 +69,21 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
 {
     // Round bytes down so it is 0 modulo 4
     bytes = bytes - (bytes & 0x3);
-
-    // We return the smallest of the following:
-    //  1) The space from write_res to read
-    //  2) The space from write_res to the end of the buffer
-    //  3) The requested number of bytes
-    int ret_size = MIN(MIN(bytes, WRITE_TO_END(r)), WRITE_FREE_SPACE(r));
+    
+    struct ring_res ret;
+    
+    // If there is insufficient space in the buffer to allocate, reserve 0 instead:
+    if (bytes > WRITE_FREE_SPACE(r))
+    {
+        ret = { 0, NULL };
+        return ret;
+    }
+    
+    // Otherwise, do a short reserve if we hit the end of the buffer:
+    int ret_size = MIN(bytes, WRITE_TO_END(r));
 
     // Setup return struct
-    struct ring_res ret =
+    ret =
     {
         ret_size << 2,
         (int*)(BUF(r) + BUF(r)[WRITE_RES])
@@ -99,13 +99,6 @@ void ring_write_notify(struct ring *r, int bytes)
     // Round bytes down so it is 0 modulo 4
     bytes = bytes - (bytes & 0x3);
 
-    // TODO: return error code? For now, just print bad message and exit
-    if (bytes > RESERVED_WRITE(r))
-    {
-        printf(1, "ERROR - Requested to write-notify too many bytes\n");
-        exit();
-    }
-
     // Increment write head:
     BUF(r)[WRITE] += (bytes >> 2);
 }
@@ -114,15 +107,21 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
 {
     // Round bytes down so it is 0 modulo 4
     bytes = bytes - (bytes & 0x3);
+    
+    struct ring_res ret;
+    
+    // If there is insufficient space in the buffer to allocate, reserve 0 instead:
+    if (bytes > READ_FREE_SPACE(r))
+    {
+        ret = { 0, NULL };
+        return ret;
+    }
 
-    // We return the smallest of the following:
-    //  1) The space from read_res to write
-    //  2) The space from read_res to the end of the buffer
-    //  3) The requested number of bytes
-    int ret_size = MIN(MIN(bytes, READ_TO_END(r)), READ_FREE_SPACE(r));
+    // Otherwise, do a short reserve if we hit the end of the buffer:
+    int ret_size = MIN(bytes, READ_TO_END(r));
 
     // Setup return struct
-    struct ring_res ret =
+    ret =
     {
         ret_size << 2,
         (int*)(BUF(r) + BUF(r)[READ_RES])
@@ -137,13 +136,6 @@ void ring_read_notify(struct ring *r, int bytes)
 {
     // Round bytes down so it is 0 modulo 4
     bytes = bytes - (bytes & 0x3);
-
-    // TODO: return error code? For now, just print bad message and exit
-    if (bytes > RESERVED_READ(r))
-    {
-        printf(1, "ERROR - Requested to read-notify too many bytes\n");
-        exit();
-    }
 
     // Increment write head:
     BUF(r)[READ] += (bytes >> 2);
