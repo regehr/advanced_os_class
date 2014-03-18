@@ -15,7 +15,7 @@
    if(shmget(token,(char*)0x7FF00000,(RINGSIZE+PGSIZE))<0){ 
      printf(1,"Error in ring attach with shmget\n");
      free(ret);
-     return NULL;
+     return 0;
    }
 
    /**************************************
@@ -59,14 +59,14 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
   
   //Wrap around. if the write reservation is already at the end of ring
   //see if there is atleast 1 byte at the front of the head.
-  if(write_res == ringsize(-1) && read != 0){
+  if(write_res == ring_size(-1) && read != 0){
     write_res = 0;
     *write_res_ptr = 0;
   }
   //if write_res is at end of buffer and no space at the front return 0 space
-  else if(write_res == ringsize(-1) && read == 0){
-    ret->size = 0;
-    ret->buf = ((void*)0x7FF80000);
+  else if(write_res == ring_size(-1) && read == 0){
+    ret.size = 0;
+    ret.buf = ((void*)0x7FF80000);
     return ret;
   }
 
@@ -74,19 +74,19 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
   //determine if read is ahead of write
   //this is the case where write has wrapped around and read hasn't read around
   if(read > (write_res+bytes)){
-    ret->size = (*write_res_ptr) =  write_res+bytes;
-    ret->buf = ((char*)0x7FF00000)+(wrte_res+bytes);
+    ret.size = (*write_res_ptr) =  write_res+bytes;
+    ret.buf = ((char*)0x7FF00000)+(write_res+bytes);
     return ret;
   }
   else if(read < write_res){
-    if((write_res + bytes) > ringsize(-1)){
-      ret->size = (*write_res_ptr) = ringsize(-1)-write_res;
-      ret->buf =  ((char*)0x7FF00000) + (ringsize(-1)-write_res);
+    if((write_res + bytes) > ring_size(-1)){
+      ret.size = (*write_res_ptr) = ring_size(-1)-write_res;
+      ret.buf =  ((char*)0x7FF00000) + (ring_size(-1)-write_res);
       return ret;
     }
     else{
-      ret->size = (*write_res_ptr) = write_res + bytes;
-      ret->buf = ((char*)0x7FF00000)+(wrte_res+bytes);
+      ret.size = (*write_res_ptr) = write_res + bytes;
+      ret.buf = ((char*)0x7FF00000)+(write_res+bytes);
       return ret;
     }
   }
@@ -115,30 +115,30 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
   
 
   if(read_res == write){ //no space
-    ret->size = 0;
-    ret->buf = (char*)0x7FF00000 + (read_res + bytes);
+    ret.size = 0;
+    ret.buf = (char*)0x7FF00000 + (read_res + bytes);
     return ret;
   }
   //write has wrapped around 
   if(read_res > write){
-    if(read_res + bytes > ringsize(-1)){
-      ret->size = (*read_reserve_ptr) = ringsize(-1)-read_res;
-      ret->buf = (char*)0x7FF00000 + ret->size;
+    if(read_res + bytes > ring_size(-1)){
+      ret.size = (*read_reserve_ptr) = ring_size(-1)-read_res;
+      ret.buf = (char*)0x7FF00000 + ret.size;
       return ret;
     }
-      ret->size = (*read_reserve_ptr) = read_res + bytes;
-      ret->buf = (char*)0x7FF00000 + bytes;
+      ret.size = (*read_reserve_ptr) = read_res + bytes;
+      ret.buf = (char*)0x7FF00000 + bytes;
       return ret;
   }
   //else write hasn't wrapped around -- we'll be bumping up against write
   else{
     if(read_res + bytes >= write){
-      ret->size = (*read_reserve_ptr) = write - read_res;
-      ret->buf = (char*)0x7FF00000 + ret->size;
+      ret.size = (*read_reserve_ptr) = write - read_res;
+      ret.buf = (char*)0x7FF00000 + ret.size;
       return ret;
     }
-    ret->size = (*read_reserve_ptr) = read_res + bytes;
-    ret->buf = (char*)0x7FF000000 + ret->size;
+    ret.size = (*read_reserve_ptr) = read_res + bytes;
+    ret.buf = (char*)0x7FF000000 + ret.size;
     return ret;
   }
   return ret;
