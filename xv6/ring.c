@@ -45,6 +45,16 @@ void ring_write_notify(struct ring *r, int bytes)
 struct ring_res ring_read_reserve(struct ring *r, int bytes)
 {
   struct ring_res ret = {0, 0};
+
+  // base cases
+  if (*pointer->read_reserve == *pointer->write)
+	return ret
+
+  unsigned int old = *poiner->read_reserve;
+  *pointer->read_reserve += bytes
+
+  ret->size = *pointer->read_reserve;
+  ret->buf = RING_START + (old & (RING_SIZE - 1));
   return ret;
 }
 
