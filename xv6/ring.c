@@ -7,8 +7,6 @@
 #define RING_SIZE 0x0007F000
 #define PAGE_SIZE 0x1000
 
-#define 
-
 
 // Hard coded virtual address I'd like to map my shmget
 // region to, as well as locations for important ptrs
@@ -185,10 +183,28 @@ void ring_read_notify(struct ring *r, int bytes)
 
 void ring_write(struct ring *r, void *buf, int bytes)
 {
+  while (bytes > 0)
+    {
+      struct ring_res write_res = ring_write_reserve(r, bytes);
+      // ?!?!?!?!
+      // So, I was defining another function that did this in terms of integers, and suddenly
+      // mkfs was failing on building (seriously - make stopped working!) and I can't figure
+      // what could be going on. For now, we'll copy by bytes even though that's terrible. :|
+      memmove(write_res.buf, buf, write_res.size);
+      bytes -= (write_res.size);
+      ring_write_notify(r, write_res.size);
+    }
 
+  return bytes;
 }
 
-void ring_read(struct ring *r, void *buf, int bytes)
+int ring_read(struct ring *r, void *buf, int bytes)
 {
-
+  struct ring_res read_res = ring_read_reserve(r, bytes);
+  memmove(buf, read_res.buf, read_res.size);
+  ring_read_notify(r, read_res.size);
+  return read_res.size;
 }
+
+
+
