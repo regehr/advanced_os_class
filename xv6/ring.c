@@ -37,12 +37,12 @@ void ring_read_notify(struct ring *r, int bytes)
 
 }
 
-void ring_write(struct ring *r, void *buf, int bytes)
+int ring_write(struct ring *r, void *buf, int bytes)
 {
-
+  return 0;
 }
 
-void ring_read(struct ring *r, void *buf, int bytes)
+int ring_read(struct ring *r, void *buf, int bytes)
 {
-
+  return 0;
 }

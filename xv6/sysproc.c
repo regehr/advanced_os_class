@@ -124,3 +124,9 @@ sys_shmget(void)
 {
   return 0;
 }
+
+int
+sys_setpriority(void)
+{
+  return 0;
+}

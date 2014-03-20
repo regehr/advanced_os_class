@@ -24,6 +24,7 @@ int sleep(int);
 int uptime(void);
 int gettime(unsigned long *msec, unsigned long *sec);
 int shmget(uint, char *, uint);
+int setpriority(uint,int);
 
 // ulib.c
 int stat(char*, struct stat*);
