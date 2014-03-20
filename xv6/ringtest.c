@@ -7,6 +7,7 @@
 #include "stat.h"
 #include "user.h"
 #include "fs.h"
+#include "ring.h"
 
 #define Exit(x) exit()
 #define Printf(x,fmt,...) printf(x,fmt,__VA_ARGS__)
@@ -71,31 +72,32 @@ static struct _rand48_state s, s2;
 #endif
 
 static int reads, writes;
+struct ring *r;
 
-static int _read (int fd, unsigned char *buf, int len)
+static int _read (unsigned char *buf, int len)
 {
   reads++;
 #ifdef CHECK
   len = (_lrand48(&s2)%len) + 1;
 #endif
-  return read (fd, buf, len);
+  return ring_read (r, buf, len);
 }
 
-static int _write (int fd, unsigned char *buf, int len)
+static int _write (unsigned char *buf, int len)
 {
   writes++;
 #ifdef CHECK
   len = (_lrand48(&s2)%len) + 1;
 #endif
-  return write (fd, buf, len);
+  return ring_write (r, buf, len);
 }
 
-static void reader (int fd)
+static void reader (void)
 {
   int bytes_read = 0;
   int z;
   do {
-    z = _read (fd, buf, BLOCK_SIZE);
+    z = _read (buf, BLOCK_SIZE);
     Assert (z != -1);      
     bytes_read += z;
 #ifdef CHECK
@@ -111,7 +113,7 @@ static void reader (int fd)
   Printf (1, "%d bytes read in %d calls to read()\n", bytes_read, reads);
 }
 
-static void writer (int fd)
+static void writer (void)
 {  
   int bytes_wrote = 0;
 #ifdef CHECK
@@ -131,7 +133,7 @@ static void writer (int fd)
       }
     }
 #endif
-    int z = _write (fd, buf, BLOCK_SIZE);
+    int z = _write (buf, BLOCK_SIZE);
     Assert (z != 0);
 #ifdef CHECK
     last_pos = z;
@@ -150,26 +152,15 @@ int main (void)
 #endif
 
   long start = get_ms();
-  int pipefd[2];
-  int res = pipe (pipefd);
-  Assert (res==0);
+  r = ring_attach (0);
+  Assert (r);
   int pid = fork();
   Assert (pid >= 0);
   if (pid == 0) {
-    int res = close(pipefd[1]);
-    Assert (res == 0);
-    reader(pipefd[0]);
-    res = close(pipefd[0]);
-    Assert (res == 0);
+    reader();
     Exit (0);
   } else {
-    int res = close(pipefd[0]);
-    Assert (res == 0);
-    writer(pipefd[1]);
-    res = close(pipefd[1]);
-    Assert (res == 0);
-    res = Wait();
-    Assert (res != -1);
+    writer();
   }
   long duration = get_ms() - start;
   Printf (1, "elapsed time = %d ms\n", (int)duration);
