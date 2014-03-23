@@ -93,13 +93,7 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
   return ret;
 }
 
-void ring_write_notify(struct ring *r, int bytes)
-{
-  if(!r || !bytes) return;
 
-  
-  
-}
 
 struct ring_res ring_read_reserve(struct ring *r, int bytes)
 {
@@ -146,13 +140,40 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
 
 void ring_read_notify(struct ring *r, int bytes)
 {
-
+  if(!r || !bytes || bytes<0) return;
+  *((int *)0x7FF80000) += bytes;
 }
+
+void ring_write_notify(struct ring *r, int bytes)
+{
+  if(!r || !bytes || bytes<0) return;
+
+  *((int*)0x7FF80080) += bytes;
+  
+  
+}
+
+
 
 void ring_write(struct ring *r, void *buf, int bytes)
 {
+
+  /*Arics implementation for now*/
+   while (bytes > 0)
+    {
+        struct ring_res write_res = ring_write_reserve(r, bytes);
+        memmove(write_res.buf, buf, write_res.size);
+        bytes -= (write_res.size);
+        ring_write_notify(r, write_res.size);
+    }
+
+    return bytes;
 }
 
 void ring_read(struct ring *r, void *buf, int bytes)
 {
+    struct ring_res read_res = ring_read_reserve(r, bytes);
+    memmove(buf, read_res.buf, read_res.size);
+    ring_read_notify(r, read_res.size);
+    return read_res.size;
 }
