@@ -7,6 +7,25 @@
 #include "proc.h"
 #include "spinlock.h"
 
+/* Andrew Riley */
+
+/* priority queue node */
+struct {
+  struct proc *p; // process
+  volatile short rank; // priority rank
+} priority;
+
+/* priority queue linked list */
+struct {
+  struct priority *head;
+  struct priority *tail;
+} priority_queue;
+
+struct priority_queue p_queue[32]; // queue
+
+
+
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
