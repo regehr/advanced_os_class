@@ -174,7 +174,11 @@ UPROGS=\
 	_zombie\
 	_gettime\
 	_testshmget\
+<<<<<<< HEAD
 	_ringtest
+=======
+	_ringtest\
+>>>>>>> bccf736d14be12dcc4fcf467dd5b4bca30e179b0
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -244,7 +248,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c pipetest.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	printf.c umalloc.c ring.c\
+	printf.c umalloc.c ring.c ringtest.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
