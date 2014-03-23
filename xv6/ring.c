@@ -155,7 +155,7 @@ void ring_write_notify(struct ring *r, int bytes)
 
 
 
-void ring_write(struct ring *r, void *buf, int bytes)
+int ring_write(struct ring *r, void *buf, int bytes)
 {
 
   /*Arics implementation for now*/
@@ -170,7 +170,7 @@ void ring_write(struct ring *r, void *buf, int bytes)
     return bytes;
 }
 
-void ring_read(struct ring *r, void *buf, int bytes)
+int ring_read(struct ring *r, void *buf, int bytes)
 {
     struct ring_res read_res = ring_read_reserve(r, bytes);
     memmove(buf, read_res.buf, read_res.size);
