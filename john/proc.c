@@ -111,13 +111,11 @@ static int ready1(struct proc * process)
 	{
 	  proc = proc->next;
 	}
-      cprintf("deep as fuck");
       proc->next = process; 
       process->prev = proc;
     }
   else
     {
-      cprintf("tity boi\n");
       ready_q.proc[process->priority] = process; 
     }
   cprintf("pnt: %d, prio: %d\n", process,  process->priority );
@@ -337,7 +335,6 @@ scheduler(void)
     acquire(&ptable.lock);
     for( i = 0; i < 32 ; i++)
       {
-	cprintf("looping\n");
 	if((p = ready_q.proc[i]))
 	  {
 	    struct proc *temp = p->next; 
