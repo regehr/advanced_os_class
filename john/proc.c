@@ -12,6 +12,14 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+
+struct {
+  struct spinlock lock;
+  struct proc *proc[NPRIORITYS];
+} ready_q;
+
+
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -24,7 +32,20 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+ 
 }
+
+void
+rqinit(void)
+{
+  int i;
+  initlock(&ready_q.lock, "ready_q");
+  for(i = 0; i < 32; i++)
+    {
+      ready_q.proc[i] = 0; 
+    }
+}
+
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -47,6 +68,11 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  //set high prority 
+  p-> priority = 0; 
+  //need to malloc size??
+   p->next = 0; 
+   p->prev = 0; 
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -73,11 +99,49 @@ found:
   return p;
 }
 
+
+static int ready1(struct proc * process)
+{
+  struct proc *proc;
+  if(!process)
+    return -1;
+  if((proc = ready_q.proc[process->priority]))
+    {
+      while(proc->next)
+	{
+	  proc = proc->next;
+	}
+      cprintf("deep as fuck");
+      proc->next = process; 
+      process->prev = proc;
+    }
+  else
+    {
+      cprintf("tity boi\n");
+      ready_q.proc[process->priority] = process; 
+    }
+  cprintf("pnt: %d, prio: %d\n", process,  process->priority );
+  return 1; 
+
+}
+
+static int ready(struct proc * process)
+{
+  int ret; 
+  acquire(&ptable.lock);
+  ret = ready1(process);
+  release(&ptable.lock);
+  return ret;
+}
+
 //PAGEBREAK: 32
 // Set up first user process.
+
+
 void
 userinit(void)
 {
+  cprintf("userinit\n");
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
   
@@ -95,12 +159,16 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
-
+  
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-
+  cprintf("here\n");
+  ready(p);
   p->state = RUNNABLE;
+  
+
 }
+
 
 // Grow current process's memory by n bytes.
 // Return 0 on success, -1 on failure.
@@ -156,6 +224,7 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
+  ready(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -196,7 +265,7 @@ exit(void)
         wakeup1(initproc);
     }
   }
-
+  //release(&ptable.lock);
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -258,32 +327,44 @@ void
 scheduler(void)
 {
   struct proc *p;
-
+  int i ;
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
+    
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    for( i = 0; i < 32 ; i++)
+      {
+	cprintf("looping\n");
+	if((p = ready_q.proc[i]))
+	  {
+	    struct proc *temp = p->next; 
+	    p->next = 0;
+	    if(temp)
+	      temp->prev = 0;
+	    ready_q.proc[i] = temp; 
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0;
-    }
+	    cprintf("%d\n", p->pid);
+
+
+	    proc = p;
+	    switchuvm(p);
+	    p->state = RUNNING;
+	    swtch(&cpu->scheduler, proc->context);
+	    switchkvm();
+	    
+	    // Process is done running for now.
+	    // It should have changed its p->state before coming back.
+	    proc = 0;
+	    p = 0;
+	    break; 
+	  }
+      }
+    
     release(&ptable.lock);
-
   }
 }
 
@@ -312,7 +393,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE;
+  proc->state = RUNNABLE; //don't need to put on ready queue becase it's already running. 
   sched();
   release(&ptable.lock);
 }
@@ -383,8 +464,14 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
+    {
+      if(p->state == SLEEPING && p->chan == chan)
+	{
+	  cprintf("wakeup\n");
+	  p->state = RUNNABLE;
+	  ready1(p);
+	}
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -410,8 +497,11 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
-        p->state = RUNNABLE;
-      release(&ptable.lock);
+	{
+	  ready(p);
+	  p->state = RUNNABLE;
+	}
+	release(&ptable.lock);
       return 0;
     }
   }
