@@ -8113,7 +8113,7 @@ int ready1(struct proc * process)
 80104185:	55                   	push   %ebp
 80104186:	89 e5                	mov    %esp,%ebp
 80104188:	83 ec 10             	sub    $0x10,%esp
-  struct proc *proc;
+  struct proc *p;
   if(!process)
 8010418b:	83 7d 08 00          	cmpl   $0x0,0x8(%ebp)
 8010418f:	75 0a                	jne    8010419b <ready1+0x16>
@@ -8132,7 +8132,7 @@ int ready1(struct proc * process)
     return -1; 
 801041b6:	b8 ff ff ff ff       	mov    $0xffffffff,%eax
 801041bb:	eb 69                	jmp    80104226 <ready1+0xa1>
-  if((proc = ready_q.proc[process->priority]))
+  if((p = ready_q.proc[process->priority]))
 801041bd:	8b 45 08             	mov    0x8(%ebp),%eax
 801041c0:	8b 80 84 00 00 00    	mov    0x84(%eax),%eax
 801041c6:	83 c0 0c             	add    $0xc,%eax
@@ -8141,31 +8141,31 @@ int ready1(struct proc * process)
 801041d3:	83 7d fc 00          	cmpl   $0x0,-0x4(%ebp)
 801041d7:	74 32                	je     8010420b <ready1+0x86>
     {
-      while(proc->next)
+      while(p->next)
 801041d9:	eb 0c                	jmp    801041e7 <ready1+0x62>
 	{
-	  proc = proc->next;
+	  p = p->next;
 801041db:	8b 45 fc             	mov    -0x4(%ebp),%eax
 801041de:	8b 80 80 00 00 00    	mov    0x80(%eax),%eax
 801041e4:	89 45 fc             	mov    %eax,-0x4(%ebp)
     return -1;
   if(process->priority > NPRIORITYS || process->priority < 0)
     return -1; 
-  if((proc = ready_q.proc[process->priority]))
+  if((p = ready_q.proc[process->priority]))
     {
-      while(proc->next)
+      while(p->next)
 801041e7:	8b 45 fc             	mov    -0x4(%ebp),%eax
 801041ea:	8b 80 80 00 00 00    	mov    0x80(%eax),%eax
 801041f0:	85 c0                	test   %eax,%eax
 801041f2:	75 e7                	jne    801041db <ready1+0x56>
 	{
-	  proc = proc->next;
+	  p = p->next;
 	}
-      proc->next = process; 
+      p->next = process; 
 801041f4:	8b 45 fc             	mov    -0x4(%ebp),%eax
 801041f7:	8b 55 08             	mov    0x8(%ebp),%edx
 801041fa:	89 90 80 00 00 00    	mov    %edx,0x80(%eax)
-      process->prev = proc;
+      process->prev = p;
 80104200:	8b 45 08             	mov    0x8(%ebp),%eax
 80104203:	8b 55 fc             	mov    -0x4(%ebp),%edx
 80104206:	89 50 7c             	mov    %edx,0x7c(%eax)
@@ -8824,62 +8824,63 @@ scheduler(void)
 801047ed:	83 ec 28             	sub    $0x28,%esp
   struct proc *p;
   int i ;
-  for(;;){
-    // Enable interrupts on this processor.
-    sti();
+  for(;;)
+    {
+      // Enable interrupts on this processor.
+      sti();
 801047f0:	e8 07 f8 ff ff       	call   80103ffc <sti>
-
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
+      
+      // Loop over process table looking for process to run.
+      acquire(&ptable.lock);
 801047f5:	c7 04 24 e0 ff 10 80 	movl   $0x8010ffe0,(%esp)
 801047fc:	e8 da 04 00 00       	call   80104cdb <acquire>
-    for(i = 0; i < NPRIORITYS; i++)
+      for(i = 0; i < NPRIORITYS; i++)
 80104801:	c7 45 f0 00 00 00 00 	movl   $0x0,-0x10(%ebp)
 80104808:	e9 a6 00 00 00       	jmp    801048b3 <scheduler+0xc9>
-      {
-	if((p = ready_q.proc[i]))
+	{
+	  if((p = ready_q.proc[i]))
 8010480d:	8b 45 f0             	mov    -0x10(%ebp),%eax
 80104810:	83 c0 0c             	add    $0xc,%eax
 80104813:	8b 04 85 24 ff 10 80 	mov    -0x7fef00dc(,%eax,4),%eax
 8010481a:	89 45 ec             	mov    %eax,-0x14(%ebp)
 8010481d:	83 7d ec 00          	cmpl   $0x0,-0x14(%ebp)
 80104821:	0f 84 88 00 00 00    	je     801048af <scheduler+0xc5>
-	  {
-	    struct proc *temp = p->next; 
+	    {
+	      struct proc *temp = p->next; 
 80104827:	8b 45 ec             	mov    -0x14(%ebp),%eax
 8010482a:	8b 80 80 00 00 00    	mov    0x80(%eax),%eax
 80104830:	89 45 f4             	mov    %eax,-0xc(%ebp)
-	    p->next = 0;
+	      p->next = 0;
 80104833:	8b 45 ec             	mov    -0x14(%ebp),%eax
 80104836:	c7 80 80 00 00 00 00 	movl   $0x0,0x80(%eax)
 8010483d:	00 00 00 
-	    if(temp)
+	      if(temp)
 80104840:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
 80104844:	74 0a                	je     80104850 <scheduler+0x66>
-	      temp->prev = 0;
+		temp->prev = 0;
 80104846:	8b 45 f4             	mov    -0xc(%ebp),%eax
 80104849:	c7 40 7c 00 00 00 00 	movl   $0x0,0x7c(%eax)
-	    ready_q.proc[i] = temp; 
+	      ready_q.proc[i] = temp; 
 80104850:	8b 45 f0             	mov    -0x10(%ebp),%eax
 80104853:	8d 50 0c             	lea    0xc(%eax),%edx
 80104856:	8b 45 f4             	mov    -0xc(%ebp),%eax
 80104859:	89 04 95 24 ff 10 80 	mov    %eax,-0x7fef00dc(,%edx,4)
-
-
-	    //cprintf("process found with pid:%d\n", p->pid);
-
-
-	    proc = p;
+	      
+	      
+	      //cprintf("process found with pid:%d\n", p->pid);
+	      
+	      
+	      proc = p;
 80104860:	8b 45 ec             	mov    -0x14(%ebp),%eax
 80104863:	65 a3 04 00 00 00    	mov    %eax,%gs:0x4
-	    switchuvm(p);
+	      switchuvm(p);
 80104869:	8b 45 ec             	mov    -0x14(%ebp),%eax
 8010486c:	89 04 24             	mov    %eax,(%esp)
 8010486f:	e8 97 32 00 00       	call   80107b0b <switchuvm>
-	    p->state = RUNNING;
+	      p->state = RUNNING;
 80104874:	8b 45 ec             	mov    -0x14(%ebp),%eax
 80104877:	c7 40 0c 04 00 00 00 	movl   $0x4,0xc(%eax)
-	    swtch(&cpu->scheduler, proc->context);
+	      swtch(&cpu->scheduler, proc->context);
 8010487e:	65 a1 04 00 00 00    	mov    %gs:0x4,%eax
 80104884:	8b 40 1c             	mov    0x1c(%eax),%eax
 80104887:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
@@ -8887,35 +8888,35 @@ scheduler(void)
 80104891:	89 44 24 04          	mov    %eax,0x4(%esp)
 80104895:	89 14 24             	mov    %edx,(%esp)
 80104898:	e8 33 09 00 00       	call   801051d0 <swtch>
-	    switchkvm();
+	      switchkvm();
 8010489d:	e8 4c 32 00 00       	call   80107aee <switchkvm>
-	    
-	    // Process is done running for now.
-	    // It should have changed its p->state before coming back.
-	    proc = 0;
+	      
+	      // Process is done running for now.
+	      // It should have changed its p->state before coming back.
+	      proc = 0;
 801048a2:	65 c7 05 04 00 00 00 	movl   $0x0,%gs:0x4
 801048a9:	00 00 00 00 
- 
-	    break; 
+	      
+	      break; 
 801048ad:	eb 0e                	jmp    801048bd <scheduler+0xd3>
-    // Enable interrupts on this processor.
-    sti();
-
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    for(i = 0; i < NPRIORITYS; i++)
+      // Enable interrupts on this processor.
+      sti();
+      
+      // Loop over process table looking for process to run.
+      acquire(&ptable.lock);
+      for(i = 0; i < NPRIORITYS; i++)
 801048af:	83 45 f0 01          	addl   $0x1,-0x10(%ebp)
 801048b3:	83 7d f0 1f          	cmpl   $0x1f,-0x10(%ebp)
 801048b7:	0f 8e 50 ff ff ff    	jle    8010480d <scheduler+0x23>
- 
-	    break; 
-	  }
-      }  
-  
-    release(&ptable.lock);
+	      
+	      break; 
+	    }
+	}  
+      
+      release(&ptable.lock);
 801048bd:	c7 04 24 e0 ff 10 80 	movl   $0x8010ffe0,(%esp)
 801048c4:	e8 73 04 00 00       	call   80104d3c <release>
-  }
+    }
 801048c9:	e9 22 ff ff ff       	jmp    801047f0 <scheduler+0x6>
 
 801048ce <sched>:
