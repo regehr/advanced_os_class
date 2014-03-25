@@ -32,7 +32,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
- 
+
 }
 
 void
@@ -42,7 +42,7 @@ rqinit(void)
   initlock(&ready_q.lock, "ready_q");
   for(i = 0; i < NPRIORITYS; i++)
     {
-      ready_q.proc[i] = 0; 
+      ready_q.proc[i] = 0;
     }
 }
 
@@ -68,11 +68,11 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  //set high prority 
-  p-> priority = 0; 
+  //set high prority
+  p-> priority = 0;
   //need to malloc size??
-   p->next = 0; 
-   p->prev = 0; 
+   p->next = 0;
+   p->prev = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -81,11 +81,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -102,32 +102,32 @@ found:
 
 int ready1(struct proc * process)
 {
-  struct proc *proc;
+  struct proc *p;
   if(!process)
     return -1;
   if(process->priority > NPRIORITYS || process->priority < 0)
-    return -1; 
-  if((proc = ready_q.proc[process->priority]))
+    return -1;
+  if((p = ready_q.proc[process->priority]))
     {
-      while(proc->next)
-	{
-	  proc = proc->next;
-	}
-      proc->next = process; 
-      process->prev = proc;
+      while(p->next)
+        {
+          p = p->next;
+        }
+      p->next = process;
+      process->prev = p;
     }
   else
     {
-      ready_q.proc[process->priority] = process; 
+      ready_q.proc[process->priority] = process;
     }
   //cprintf("pnt: %d, prio: %d\n", process,  process->priority );
-  return 1; 
+  return 1;
 
 }
 
 int ready(struct proc * process)
 {
-  int ret; 
+  int ret;
   acquire(&ptable.lock);
   ret = ready1(process);
   release(&ptable.lock);
@@ -147,7 +147,7 @@ userinit(void)
   cprintf("userinit\n");
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -162,11 +162,10 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
-  
+
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
   cprintf("here\n");
-  
   p->state = RUNNABLE;
   ready(p);
 
@@ -179,7 +178,7 @@ int
 growproc(int n)
 {
   uint sz;
-  
+
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -224,7 +223,7 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
- 
+
   pid = np->pid;
   np->state = RUNNABLE;
   ready(np);
@@ -268,7 +267,7 @@ exit(void)
         wakeup1(initproc);
     }
   }
-  
+
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -335,37 +334,36 @@ scheduler(void)
     {
       // Enable interrupts on this processor.
       sti();
-      
+
       // Loop over process table looking for process to run.
       acquire(&ptable.lock);
       for(i = 0; i < NPRIORITYS; i++)
-	{
-	  if((p = ready_q.proc[i]))
-	    {
-	      struct proc *temp = p->next; 
-	      p->next = 0;
-	      if(temp)
-		temp->prev = 0;
-	      ready_q.proc[i] = temp; 
-	      
-	      
-	      //cprintf("process found with pid:%d\n", p->pid);
-	      
-	      
-	      proc = p;
-	      switchuvm(p);
-	      p->state = RUNNING;
-	      swtch(&cpu->scheduler, proc->context);
-	      switchkvm();
-	      
-	      // Process is done running for now.
-	      // It should have changed its p->state before coming back.
-	      proc = 0;
-	      
-	      break; 
-	    }
-	}  
-      
+        {
+          if((p = ready_q.proc[i]))
+            {
+              struct proc *temp = p->next;
+              p->next = 0;
+              if(temp)
+                temp->prev = 0;
+              ready_q.proc[i] = temp;
+
+
+              //cprintf("process found with pid:%d\n", p->pid);
+
+              proc = p;
+              switchuvm(p);
+              p->state = RUNNING;
+              swtch(&cpu->scheduler, proc->context);
+              switchkvm();
+
+              // Process is done running for now.
+              // It should have changed its p->state before coming back.
+              proc = 0;
+
+              break;
+            }
+        }
+
       release(&ptable.lock);
     }
 }
@@ -394,10 +392,10 @@ sched(void)
 void
 yield(void)
 {
-  
+
   acquire(&ptable.lock);  //DOC: yieldlock
-  ready1(proc);  
-  proc->state = RUNNABLE; 
+  ready1(proc);
+  proc->state = RUNNABLE;
   sched();
   release(&ptable.lock);
 }
@@ -410,16 +408,15 @@ forkret(void)
   release(&ptable.lock);
   static int first = 1;
   // Still holding ptable.lock from scheduler.
-  
 
   if (first) {
     // Some initialization functions must be run in the context
-    // of a regular process (e.g., they call sleep), and thus cannot 
+    // of a regular process (e.g., they call sleep), and thus cannot
     // be run from main().
     first = 0;
     initlog();
   }
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -471,11 +468,11 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       if(p->state == SLEEPING && p->chan == chan)
-	{
-	  //cprintf("wakeup\n");
-	  p->state = RUNNABLE;
-	  ready1(p);
-	}
+        {
+          //cprintf("wakeup\n");
+          p->state = RUNNABLE;
+          ready1(p);
+        }
     }
 }
 
@@ -502,11 +499,11 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
-	{
-	  p->state = RUNNABLE;
-	  ready1(p);
-	}
-	release(&ptable.lock);
+        {
+          p->state = RUNNABLE;
+          ready1(p);
+        }
+      release(&ptable.lock);
       return 0;
     }
   }
@@ -533,7 +530,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -550,5 +547,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-
-
