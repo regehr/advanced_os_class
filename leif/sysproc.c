@@ -94,12 +94,30 @@ sys_setpriority(void)
 {
   uint pid;
   int priority;
+  struct proc * p;
 
+  // Get arguments
   if((arguint(0,&pid) < 0) ||
      (argint(2,&priority) < 0)) {
     cprintf("shmget: can't get variables.\n");
     return -1;
   }
 
+  // Find process
+  acquire(&ptable.lock);
+  int found = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid) {
+      found = 1;
+      break;
+    }
+  }
+  if(!found) {
+    cprintf("Process not found");
+    release(&ptable.lock);
+    return -1;
+  }
+  p->priority = priority;
+  release(&ptable.lock);
   return 0;
 }
