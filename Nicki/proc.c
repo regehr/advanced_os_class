@@ -142,7 +142,8 @@ userinit(void)
   p->next = NULL;   // initialize queue next pointer
   p->priority = 15; // initialize priority
   
-  //**** add
+  //**** 
+  //cprintf("add in userinit\n");
   acquire(&ptable.lock);
   addtoq(p);
   release(&ptable.lock);
@@ -189,6 +190,7 @@ fork(void)
     np->state = UNUSED;
 
     //**** remove--this might be not what I want
+    //cprintf("remove in fork\n");
     acquire(&ptable.lock);
     removefromq(np);
     release(&ptable.lock);
@@ -261,7 +263,8 @@ exit(void)
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   
-  //**** remove
+  //**** remove--this may be unneccessary
+  //cprintf("remove in exit\n");
   removefromq(proc);
   //****
   
@@ -325,13 +328,19 @@ scheduler(void)
 {
   struct proc *p;
   int i;
+#if 0
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED)
+      cprintf("proc %d has priority  %d\n", p->pid, p->priority);
+  }
+#endif
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     acquire(&ptable.lock);
-    // Loop through priority queues looking for runnable processes
+    // Loop through priority queues looking for runnable processe
     for(i = 0; i < 32; i++) {
       if(priority_q[i] != NULL) {
         p = priority_q[i];
@@ -353,6 +362,7 @@ scheduler(void)
         p->state = RUNNING;
 
         //**** remove
+        //cprintf("remove in scheduler\n");
         removefromq(p);
         //****
 
@@ -397,6 +407,7 @@ yield(void)
   proc->state = RUNNABLE;
 
   //**** add
+  //cprintf("add in yield\n");
   addtoq(proc);
   //****
 
@@ -449,10 +460,11 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
-
-  //**** remove
+#if 0
+  //**** remove--shouldn't need this
   removefromq(proc);
   //****
+#endif
 
   sched();
 
@@ -475,12 +487,14 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
     
-    //**** add
-    addtoq(p);
-    //****
+      //**** add
+      //cprintf("add in wakeup1\n");
+      addtoq(p);
+      //****
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -509,6 +523,7 @@ kill(int pid)
         p->state = RUNNABLE;
 
         //**** add
+        //cprintf("add in kill\n");
         addtoq(p);
         //****
       }
