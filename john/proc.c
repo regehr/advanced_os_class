@@ -40,7 +40,7 @@ rqinit(void)
 {
   int i;
   initlock(&ready_q.lock, "ready_q");
-  for(i = 0; i < 32; i++)
+  for(i = 0; i < NPRIORITYS; i++)
     {
       ready_q.proc[i] = 0; 
     }
@@ -100,11 +100,13 @@ found:
 }
 
 
-static int ready1(struct proc * process)
+int ready1(struct proc * process)
 {
   struct proc *proc;
   if(!process)
     return -1;
+  if(process->priority > NPRIORITYS || process->priority < 0)
+    return -1; 
   if((proc = ready_q.proc[process->priority]))
     {
       while(proc->next)
@@ -118,12 +120,12 @@ static int ready1(struct proc * process)
     {
       ready_q.proc[process->priority] = process; 
     }
-  cprintf("pnt: %d, prio: %d\n", process,  process->priority );
+  //cprintf("pnt: %d, prio: %d\n", process,  process->priority );
   return 1; 
 
 }
 
-static int ready(struct proc * process)
+int ready(struct proc * process)
 {
   int ret; 
   acquire(&ptable.lock);
@@ -131,6 +133,9 @@ static int ready(struct proc * process)
   release(&ptable.lock);
   return ret;
 }
+
+
+
 
 //PAGEBREAK: 32
 // Set up first user process.
@@ -161,9 +166,9 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
   cprintf("here\n");
-  ready(p);
-  p->state = RUNNABLE;
   
+  p->state = RUNNABLE;
+  ready(p);
 
 }
 
@@ -249,7 +254,7 @@ exit(void)
 
   iput(proc->cwd);
   proc->cwd = 0;
-
+  cprintf("acquire exit");
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -263,7 +268,7 @@ exit(void)
         wakeup1(initproc);
     }
   }
-  //release(&ptable.lock);
+  
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -326,43 +331,43 @@ scheduler(void)
 {
   struct proc *p;
   int i ;
-  for(;;){
-    // Enable interrupts on this processor.
-    sti();
-
-    // Loop over process table looking for process to run.
-    
-    acquire(&ptable.lock);
-    for( i = 0; i < 32 ; i++)
-      {
-	if((p = ready_q.proc[i]))
-	  {
-	    struct proc *temp = p->next; 
-	    p->next = 0;
-	    if(temp)
-	      temp->prev = 0;
-	    ready_q.proc[i] = temp; 
-
-
-	    cprintf("%d\n", p->pid);
-
-
-	    proc = p;
-	    switchuvm(p);
-	    p->state = RUNNING;
-	    swtch(&cpu->scheduler, proc->context);
-	    switchkvm();
-	    
-	    // Process is done running for now.
-	    // It should have changed its p->state before coming back.
-	    proc = 0;
-	    p = 0;
-	    break; 
-	  }
-      }
-    
-    release(&ptable.lock);
-  }
+  for(;;)
+    {
+      // Enable interrupts on this processor.
+      sti();
+      
+      // Loop over process table looking for process to run.
+      acquire(&ptable.lock);
+      for(i = 0; i < NPRIORITYS; i++)
+	{
+	  if((p = ready_q.proc[i]))
+	    {
+	      struct proc *temp = p->next; 
+	      p->next = 0;
+	      if(temp)
+		temp->prev = 0;
+	      ready_q.proc[i] = temp; 
+	      
+	      
+	      //cprintf("process found with pid:%d\n", p->pid);
+	      
+	      
+	      proc = p;
+	      switchuvm(p);
+	      p->state = RUNNING;
+	      swtch(&cpu->scheduler, proc->context);
+	      switchkvm();
+	      
+	      // Process is done running for now.
+	      // It should have changed its p->state before coming back.
+	      proc = 0;
+	      
+	      break; 
+	    }
+	}  
+      
+      release(&ptable.lock);
+    }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -389,8 +394,10 @@ sched(void)
 void
 yield(void)
 {
+  
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE; //don't need to put on ready queue becase it's already running. 
+  ready1(proc);  
+  proc->state = RUNNABLE; 
   sched();
   release(&ptable.lock);
 }
@@ -400,9 +407,10 @@ yield(void)
 void
 forkret(void)
 {
+  release(&ptable.lock);
   static int first = 1;
   // Still holding ptable.lock from scheduler.
-  release(&ptable.lock);
+  
 
   if (first) {
     // Some initialization functions must be run in the context
@@ -464,7 +472,7 @@ wakeup1(void *chan)
     {
       if(p->state == SLEEPING && p->chan == chan)
 	{
-	  cprintf("wakeup\n");
+	  //cprintf("wakeup\n");
 	  p->state = RUNNABLE;
 	  ready1(p);
 	}
@@ -495,8 +503,8 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
 	{
-	  ready(p);
 	  p->state = RUNNABLE;
+	  ready1(p);
 	}
 	release(&ptable.lock);
       return 0;
