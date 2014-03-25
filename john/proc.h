@@ -16,6 +16,7 @@ struct cpu {
   struct proc *proc;           // The currently-running process.
 };
 
+
 extern struct cpu cpus[NCPU];
 extern int ncpu;
 
@@ -66,6 +67,10 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  struct proc *prev;
+  struct proc *next;
+
+  int priority; 
 };
 
 // Process memory is laid out contiguously, low addresses first:
