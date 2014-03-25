@@ -6,7 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "DLList.h"
+#include "param.h"
 
 static struct proc *initproc;
 
@@ -96,12 +96,13 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->next = NULL;   // initialize queue next pointer
+  p->priority = 15; // initialize priority
   
   //**** add
-  if(priority_q[p->priority] == NULL)
-    priority_q[p->priority] = List_create();
-
-  List_push(priority_q[p->priority], p);
+  acquire(&ptable.lock);
+  addtoq(p);
+  release(&ptable.lock)
   //****
 }
 
@@ -144,12 +145,10 @@ fork(void)
     np->kstack = 0;
     np->state = UNUSED;
 
-    //**** remove
-    if(np->link != NULL) {
-      //take out of list
-      List_remove(priority_q[np->priority], np->link);
-      np->link = NULL;
-    }
+    //**** remove--this might be not what I want
+    acquire(&ptable.lock);
+    removefromq(np);
+    release(&ptable.lock);
     //****
 
     return -1;
@@ -157,6 +156,8 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
+  np->priority = proc->priority; // Initialize priority
+  np->next = NULL;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -170,10 +171,7 @@ fork(void)
   np->state = RUNNABLE;
   
   //*** add
-  if(priority_q[np->priority] == NULL)
-    priority_q[np->priority] = List_create();
-
-  List_push(priority_q[np->priority], np);
+  addtoq(np);
   //***
 
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -221,11 +219,7 @@ exit(void)
   proc->state = ZOMBIE;
   
   //**** remove
-  if(proc->link != NULL) {
-  //take out of list
-    List_remove(priority_q[proc->priority], proc->link);
-    proc->link = NULL;
-  }
+  removefromq(proc);
   //****
   
   sched();
@@ -316,11 +310,7 @@ scheduler(void)
         p->state = RUNNING;
 
         //**** remove
-        if(p->link != NULL) {
-          //take out of list
-          List_remove(priority_q[p->priority], p->link);
-          p->link = NULL;
-        }
+        removefromq(p);
         //****
 
         swtch(&cpu->scheduler, proc->context);
@@ -364,10 +354,7 @@ yield(void)
   proc->state = RUNNABLE;
 
   //**** add
-  if(priority_q[proc->priority] == NULL)
-    priority_q[proc->priority] = List_create();
-
-  List_push(priority_q[proc->priority], proc);
+  addtoq(proc);
   //****
 
   sched();
@@ -421,11 +408,7 @@ sleep(void *chan, struct spinlock *lk)
   proc->state = SLEEPING;
 
   //**** remove
-  if(proc->link != NULL) {
-  //take out of list
-    List_remove(priority_q[proc->priority], proc->link);
-    proc->link = NULL;
-  }
+  removefromq(proc);
   //****
 
   sched();
@@ -453,10 +436,7 @@ wakeup1(void *chan)
       p->state = RUNNABLE;
     
     //**** add
-    if(priority_q[p->priority] == NULL)
-      priority_q[p->priority] = List_create();
-
-    List_push(priority_q[p->priority], p);
+    addtoq(p);
     //****
 }
 
@@ -486,9 +466,7 @@ kill(int pid)
         p->state = RUNNABLE;
 
         //**** add
-        if(priority_q[p->priority] == NULL)
-          priority_q[p->priority] = List_create();
-        List_push(priority_q[p->priority], p);
+        addtoq(p);
         //****
       }
 
@@ -535,4 +513,47 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int 
+addtoq(struct proc* p_in)
+{
+  proc *p;
+  if(priority_q[p_in->priority] == NULL) {
+    priority_q[p_in->priority] = p_in;
+    return 0;
+  }
+  p = priority_q[p_in->priority];
+  while(p->next != NULL) {
+    p = p->next;
+  }
+  p->next = p_in;
+  p_in->next = NULL; // This shouldn't be necessary
+  return 0;
+  //fail case?
+}
+
+int
+removefromq(struct proc* p_in)
+{
+  proc *p = priority_q[p_in->priority];
+  if(p == NULL)
+    return -1;
+  // If we are removing the first item
+  if(p->pid == p_in->pid) {
+    priority_q[p_in->priority]= p->next;
+    p_in->next = NULL;
+    return 0;
+  }
+  while(p->next != NULL) {
+    if(p->next->pid == p_in->pid) {
+      p->next = p_in->next;
+      p_in->next = NULL;
+      return 0;
+    }
+    p = p->next;
+  }
+  // I think the previous loop takes care of the last item
+  // If we get here, then the process wasn't in the queue
+  return -1;
 }

@@ -2,8 +2,6 @@
 #define PROC_H
 // Segments in proc->gdt.
 #define NSEGS     7
-#include "DLList.h"
-#include "param.h"
 #include "spinlock.h"
 
 #ifndef NULL
@@ -76,7 +74,7 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int priority;                // Priority (0-31) of process
-  ListNode *link;                  // I don't know if this is right
+  struct proc* next;                  // Singly linked list for now
 };
 
 struct {
@@ -90,8 +88,7 @@ struct {
 //   fixed-size stack
 //   expandable heap
 
-// 32 Linked Lists for priority queues
-List* priority_q [32];
-//List *priority_q = priority_q_actual;
+// 32 processes for priority queues
+struct proc* priority_q [32];
 
 #endif
