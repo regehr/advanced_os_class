@@ -67,6 +67,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   uint priority;               // Processes priority
+  struct proc * next;          // Next process in the list.
+  struct proc * prev;          // Previous process in the list.
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -80,3 +82,13 @@ struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+struct {
+  struct spinlock lock;
+  struct proc * queue[NPRIORITIES];
+} ready_queue;
+
+int add_process(struct proc * p);
+int remove_process(struct proc * p);
+int refresh_process(struct proc * p);
+
