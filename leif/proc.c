@@ -261,8 +261,8 @@ void
 scheduler(void)
 {
   struct proc *p;
-  struct proc *p2;
-  int i;
+//  struct proc *p2;
+//  int i;
 
   for(;;){
     // Enable interrupts on this processor.
@@ -270,10 +270,10 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-//    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    for(i = 0; i < NPRIORITIES; i++) {
-      p2 = ptable.ready_queue[i];
-      for(p = p2; p; p = p->next) {
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+//    for(i = 0; i < NPRIORITIES; i++) {
+//      p2 = ptable.ready_queue[i];
+//      for(p = p2; p; p = p->next) {
         if(p->state != RUNNABLE)
           continue;
 
@@ -289,7 +289,7 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         proc = 0;
-      }
+//      }
     }
     release(&ptable.lock);
   }
