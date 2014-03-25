@@ -5,12 +5,12 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
-#include "spinlock.h"
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
 
 static struct proc *initproc;
 
@@ -24,7 +24,52 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  
 }
+
+void rQinit(void){
+  int i;
+  initlock(&readyQ.lock, "readyQ");
+  for(i=0;i<32;i++){
+    readyQ.proc[i] = 0;
+  }
+}
+
+int ready(struct proc* process){
+  
+
+  cprintf("in ready with process %d, and priority %d pid of %d\n",process,process->priority, process->pid);
+ 
+  struct proc *proc;
+  int bool =0;
+  if(ptable.lock.locked != 1){
+    acquire(&ptable.lock);
+    bool = 1;
+  }
+  //ready to place on table
+  if(!process){
+    return -1;
+  }
+  if((proc = readyQ.proc[process->priority])){
+    while(proc->next){
+      proc = proc->next;
+    }
+    proc->next = process;
+    process->prev = proc;
+    process->next = 0;
+  }
+  else{
+    readyQ.proc[process->priority] = process;
+    process->next = 0;
+    process->prev = 0;
+  }
+  
+  if(bool){
+    release(&ptable.lock);
+  }
+  return 1;
+}
+
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -34,6 +79,7 @@ pinit(void)
 static struct proc*
 allocproc(void)
 {
+  cprintf("in allocproc\n");
   struct proc *p;
   char *sp;
 
@@ -80,7 +126,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+  cprintf("in user init");
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -95,11 +141,17 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
+  p->priority = 0;
+  p->prev = 0;
+  p->next = 0;
+
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  cprintf("userinit setting on ready\n");
+  ready(p);
 }
 
 // Grow current process's memory by n bytes.
@@ -130,7 +182,7 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-
+  cprintf("in fork\n");
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -156,6 +208,8 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
+  cprintf("putting on ready q\n");
+  ready(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -257,12 +311,41 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
-
+  struct proc *p = 0;
+  int i;
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
+
+    acquire(&ptable.lock);
+    for(i=0;i<32;i++){
+      if(readyQ.proc[i]){
+	p=readyQ.proc[i];
+	if(p->next == 0){
+	  readyQ.proc[i] = 0;
+	}
+	else{
+	  readyQ.proc[i] = p->next;
+	  p->next->prev = 0;
+	}
+	p->next = 0;
+	p->prev = 0;
+	
+	cprintf("Found proc to run\n");
+	proc=p;
+	switchuvm(p);
+	p->state = RUNNING;
+	swtch(&cpu->scheduler, proc->context);
+	switchkvm();
+	proc=p=0;
+	break;
+      }
+    }
+    release(&ptable.lock);
+    
+
+    /*
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -282,7 +365,7 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       proc = 0;
     }
-    release(&ptable.lock);
+    release(&ptable.lock);*/
 
   }
 }
@@ -313,6 +396,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
+  ready(proc);
   sched();
   release(&ptable.lock);
 }
@@ -324,8 +408,8 @@ forkret(void)
 {
   static int first = 1;
   // Still holding ptable.lock from scheduler.
+  //release(&ptable.lock);
   release(&ptable.lock);
-
   if (first) {
     // Some initialization functions must be run in the context
     // of a regular process (e.g., they call sleep), and thus cannot 
@@ -382,18 +466,21 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == SLEEPING && p->chan == chan){
       p->state = RUNNABLE;
+      ready(p);
+    }
+  }
 }
 
 // Wake up all processes sleeping on chan.
 void
 wakeup(void *chan)
 {
-  acquire(&ptable.lock);
+  //acquire(&ptable.lock);
   wakeup1(chan);
-  release(&ptable.lock);
+  //release(&ptable.lock);
 }
 
 // Kill the process with the given pid.
@@ -409,8 +496,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING){
         p->state = RUNNABLE;
+	ready(p);
+      }
       release(&ptable.lock);
       return 0;
     }
