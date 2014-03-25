@@ -69,6 +69,7 @@ getshm(int key, int size, struct proc* proc, void* va)
 
     acquire(&shmemlock);
 
+
     // Scan thru shmem entries to see if we've either already allocated a spot, 
     // or if a slot still exists to allocate:
     int i;
@@ -122,7 +123,6 @@ found:
                  PGSIZE,
                  v2p(shmem_entries[open_spot].pages[i]),
                  PTE_U|PTE_W);
-        //cprintf("B\n");
     }
     switchuvm(proc);
 

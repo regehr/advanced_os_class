@@ -174,11 +174,7 @@ UPROGS=\
 	_zombie\
 	_gettime\
 	_testshmget\
-<<<<<<< HEAD
 	_ringtest
-=======
-	_ringtest\
->>>>>>> bccf736d14be12dcc4fcf467dd5b4bca30e179b0
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

@@ -84,7 +84,7 @@ struct ring_res ring_write_reserve(struct ring *r, int bytes)
     // Setup return struct
     struct ring_res ret =
     {
-        ret_size << 2,
+        ret_size,
         (int*)(BUF(r) + BUF(r)[WRITE_RES])
     };
 
@@ -111,6 +111,7 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
     if (bytes > READ_FREE_SPACE(r))
     {
         struct ring_res ret = { 0, NULL };
+        printf(1, "D:\n");
         return ret;
     }
 
@@ -120,7 +121,7 @@ struct ring_res ring_read_reserve(struct ring *r, int bytes)
     // Setup return struct
     struct ring_res ret =
     {
-        ret_size << 2,
+        ret_size,
         (int*)(BUF(r) + BUF(r)[READ_RES])
     };
 
@@ -140,15 +141,16 @@ void ring_read_notify(struct ring *r, int bytes)
 
 int ring_write(struct ring *r, void *buf, int bytes)
 {
-    while (bytes > 0)
+    int remaining = bytes;
+    while (remaining > 0)
     {
-        struct ring_res write_res = ring_write_reserve(r, bytes);
+        struct ring_res write_res = ring_write_reserve(r, remaining);
         // ?!?!?!?!
         // So, I was defining another function that did this in terms of integers, and suddenly
         // mkfs was failing on building (seriously - make stopped working!) and I can't figure
         // what could be going on. For now, we'll copy by bytes even though that's terrible. :|
         memmove(write_res.buf, buf, write_res.size);
-        bytes -= (write_res.size);
+        remaining -= (write_res.size);
         ring_write_notify(r, write_res.size);
     }
 
@@ -157,8 +159,15 @@ int ring_write(struct ring *r, void *buf, int bytes)
 
 int ring_read(struct ring *r, void *buf, int bytes)
 {
-    struct ring_res read_res = ring_read_reserve(r, bytes);
-    memmove(buf, read_res.buf, read_res.size);
-    ring_read_notify(r, read_res.size);
+    // Need to wait until something to actually read.
+    // This should sleep, but polling is fine enough for now:
+
+    struct ring_res read_res;
+    do
+    {
+        read_res = ring_read_reserve(r, bytes);
+        memmove(buf, read_res.buf, read_res.size);
+        ring_read_notify(r, read_res.size);
+    } while (read_res.size == 0);
     return read_res.size;
 }

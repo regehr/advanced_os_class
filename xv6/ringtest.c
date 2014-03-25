@@ -76,18 +76,20 @@ struct ring *r;
 
 static int _read (unsigned char *buf, int len)
 {
+  printf(1, "READING\n");
   reads++;
 #ifdef CHECK
-  len = (_lrand48(&s2)%len) + 1;
+  //len = (_lrand48(&s2)%len) + 1;
 #endif
   return ring_read (r, buf, len);
 }
 
 static int _write (unsigned char *buf, int len)
 {
+  printf(1, "WRITING\n");
   writes++;
 #ifdef CHECK
-  len = (_lrand48(&s2)%len) + 1;
+  //len = (_lrand48(&s2)%len) + 1;
 #endif
   return ring_write (r, buf, len);
 }
@@ -152,14 +154,16 @@ int main (void)
 #endif
 
   long start = get_ms();
-  r = ring_attach (0);
-  Assert (r);
   int pid = fork();
   Assert (pid >= 0);
   if (pid == 0) {
+    r = ring_attach (1);
+    Assert (r);
     reader();
     Exit (0);
   } else {
+    r = ring_attach (1);
+    Assert (r);
     writer();
   }
   long duration = get_ms() - start;
