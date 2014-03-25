@@ -9,16 +9,11 @@
 
 /* Andrew Riley */
 
-/* priority queue node */
-struct {
-  struct proc *p; // process
-  volatile short rank; // priority rank
-} priority;
 
 /* priority queue linked list */
 struct {
-  struct priority *head;
-  struct priority *tail;
+  struct proc *head;
+  struct proc *tail;
 } priority_queue;
 
 struct priority_queue p_queue[32]; // queue
@@ -145,7 +140,7 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(void)
+fork(void) // give priority of parent process
 {
   int i, pid;
   struct proc *np;
@@ -313,26 +308,28 @@ sched(void)
 {
   int intena;
 
-  if(!holding(&ptable.lock))
+  if(!holding(&ptable.lock)) // must be holding ptable lock.
     panic("sched ptable.lock");
-  if(cpu->ncli != 1)
+  if(cpu->ncli != 1) // Checks to see if more or less than one spin lock was aquired. Aquire function dissables the interrupts.
     panic("sched locks");
-  if(proc->state == RUNNING)
+  if(proc->state == RUNNING) // checks to see if process is already running.
     panic("sched running");
   if(readeflags()&FL_IF)
     panic("sched interruptible");
   intena = cpu->intena;
-  swtch(&proc->context, cpu->scheduler);
+  swtch(&proc->context, cpu->scheduler); 
   cpu->intena = intena;
 }
 
 // Give up the CPU for one scheduling round.
+// Called from trap.c
 void
-yield(void)
+yield(void) // call from trap.c
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE;
-  sched();
+  proc->state = RUNNABLE; 
+  // put current running process onto ready queue
+  sched(); // takes head of ready queue off
   release(&ptable.lock);
 }
 
