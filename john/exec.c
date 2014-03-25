@@ -88,6 +88,10 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  proc->next = 0;
+  proc->prev = 0;
+  proc->state = RUNNABLE;
+  ready(proc);
   switchuvm(proc);
   freevm(oldpgdir);
   return 0;
