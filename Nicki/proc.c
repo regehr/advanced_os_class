@@ -16,6 +16,49 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+int 
+addtoq(struct proc* p_in)
+{
+  struct proc *p;
+  if(priority_q[p_in->priority] == NULL) {
+    priority_q[p_in->priority] = p_in;
+    return 0;
+  }
+  p = priority_q[p_in->priority];
+  while(p->next != NULL) {
+    p = p->next;
+  }
+  p->next = p_in;
+  p_in->next = NULL; // This shouldn't be necessary
+  return 0;
+  //fail case?
+}
+
+int
+removefromq(struct proc* p_in)
+{
+  struct proc *p = priority_q[p_in->priority];
+  if(p == NULL)
+    return -1;
+  // If we are removing the first item
+  if(p->pid == p_in->pid) {
+    priority_q[p_in->priority]= p->next;
+    p_in->next = NULL;
+    return 0;
+  }
+  while(p->next != NULL) {
+    if(p->next->pid == p_in->pid) {
+      p->next = p_in->next;
+      p_in->next = NULL;
+      return 0;
+    }
+    p = p->next;
+  }
+  // I think the previous loop takes care of the last item
+  // If we get here, then the process wasn't in the queue
+  return -1;
+}
+
 void
 pinit(void)
 {
@@ -102,7 +145,7 @@ userinit(void)
   //**** add
   acquire(&ptable.lock);
   addtoq(p);
-  release(&ptable.lock)
+  release(&ptable.lock);
   //****
 }
 
@@ -291,7 +334,7 @@ scheduler(void)
     // Loop through priority queues looking for runnable processes
     for(i = 0; i < 32; i++) {
       if(priority_q[i] != NULL) {
-        p = priority_q[i]->head->p;
+        p = priority_q[i];
 
 #if 0
       }
@@ -513,47 +556,4 @@ procdump(void)
     }
     cprintf("\n");
   }
-}
-
-int 
-addtoq(struct proc* p_in)
-{
-  proc *p;
-  if(priority_q[p_in->priority] == NULL) {
-    priority_q[p_in->priority] = p_in;
-    return 0;
-  }
-  p = priority_q[p_in->priority];
-  while(p->next != NULL) {
-    p = p->next;
-  }
-  p->next = p_in;
-  p_in->next = NULL; // This shouldn't be necessary
-  return 0;
-  //fail case?
-}
-
-int
-removefromq(struct proc* p_in)
-{
-  proc *p = priority_q[p_in->priority];
-  if(p == NULL)
-    return -1;
-  // If we are removing the first item
-  if(p->pid == p_in->pid) {
-    priority_q[p_in->priority]= p->next;
-    p_in->next = NULL;
-    return 0;
-  }
-  while(p->next != NULL) {
-    if(p->next->pid == p_in->pid) {
-      p->next = p_in->next;
-      p_in->next = NULL;
-      return 0;
-    }
-    p = p->next;
-  }
-  // I think the previous loop takes care of the last item
-  // If we get here, then the process wasn't in the queue
-  return -1;
 }
