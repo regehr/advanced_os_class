@@ -19,13 +19,12 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  initlock(&ready_queue.lock, "ready_queue");
-  acquire(&ready_queue.lock);
+  acquire(&ptable.lock);
   int i;
   for(i = 0; i < NPRIORITIES; i++) {
-    ready_queue.queue[i] = 0;
+    ptable.ready_queue[i] = 0;
   }
-  release(&ready_queue.lock);
+  release(&ptable.lock);
 }
 
 //PAGEBREAK: 32
@@ -271,10 +270,9 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    acquire(&ready_queue.lock);
 //    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     for(i = 0; i < NPRIORITIES; i++) {
-      p2 = ready_queue.queue[i];
+      p2 = ptable.ready_queue[i];
       for(p = p2; p; p = p->next) {
         if(p->state != RUNNABLE)
           continue;
@@ -294,8 +292,6 @@ scheduler(void)
       }
     }
     release(&ptable.lock);
-    release(&ready_queue.lock);
-
   }
 }
 
@@ -308,6 +304,7 @@ sched(void)
 
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
+  //if(cpu->ncli != 1)
   if(cpu->ncli != 1)
     panic("sched locks");
   if(proc->state == RUNNING)
@@ -472,14 +469,12 @@ procdump(void)
 int add_process(struct proc * p)
 {
   acquire(&ptable.lock);
-  acquire(&ready_queue.lock);
-  struct proc * list = ready_queue.queue[p->priority];
+  struct proc * list = ptable.ready_queue[p->priority];
   if(!list) {
-    ready_queue.queue[p->priority] = p;
+    ptable.ready_queue[p->priority] = p;
     p->prev = 0;
     p->next = 0;
     release(&ptable.lock);
-    release(&ready_queue.lock);
     return 0;
   }
   while(list->next) {
@@ -488,23 +483,19 @@ int add_process(struct proc * p)
   list->next = p;
   p->prev    = list;
   release(&ptable.lock);
-  release(&ready_queue.lock);
   return 0;
 }
 
 int remove_process(struct proc * p)
 {
   acquire(&ptable.lock);
-  acquire(&ready_queue.lock);
   p->next->prev = p->prev;
   p->prev->next = p->next;
   p->prev = 0;
   p->next = 0;
   release(&ptable.lock);
-  release(&ready_queue.lock);
   return 0;
 }
-
 
 int refresh_process(struct proc * p)
 {

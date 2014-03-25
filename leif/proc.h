@@ -81,12 +81,8 @@ struct proc {
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct proc * ready_queue[NPRIORITIES];
 } ptable;
-
-struct {
-  struct spinlock lock;
-  struct proc * queue[NPRIORITIES];
-} ready_queue;
 
 int add_process(struct proc * p);
 int remove_process(struct proc * p);
