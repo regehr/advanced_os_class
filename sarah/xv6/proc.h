@@ -1,6 +1,11 @@
 // Segments in proc->gdt.
 #define NSEGS     7
 
+#define PRIORITIES 32
+// need global ready queue
+// add to ready queue and remove, in other functions
+// select from ready queue in scheduler
+
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -66,6 +71,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  uint priority;
+  struct proc * next;
+  struct proc * prev;
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -73,3 +81,6 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+void add_to_end(uint priority, struct proc * p);
+void remove_from_ready(uint priority, struct proc * p);
