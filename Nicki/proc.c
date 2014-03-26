@@ -6,7 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "DLList.h"
+#include "param.h"
 
 static struct proc *initproc;
 
@@ -15,6 +15,49 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+int 
+addtoq(struct proc* p_in)
+{
+  struct proc *p;
+  if(priority_q[p_in->priority] == NULL) {
+    priority_q[p_in->priority] = p_in;
+    return 0;
+  }
+  p = priority_q[p_in->priority];
+  while(p->next != NULL) {
+    p = p->next;
+  }
+  p->next = p_in;
+  p_in->next = NULL; // This shouldn't be necessary
+  return 0;
+  //fail case?
+}
+
+int
+removefromq(struct proc* p_in)
+{
+  struct proc *p = priority_q[p_in->priority];
+  if(p == NULL)
+    return -1;
+  // If we are removing the first item
+  if(p->pid == p_in->pid) {
+    priority_q[p_in->priority]= p->next;
+    p_in->next = NULL;
+    return 0;
+  }
+  while(p->next != NULL) {
+    if(p->next->pid == p_in->pid) {
+      p->next = p_in->next;
+      p_in->next = NULL;
+      return 0;
+    }
+    p = p->next;
+  }
+  // I think the previous loop takes care of the last item
+  // If we get here, then the process wasn't in the queue
+  return -1;
+}
 
 void
 pinit(void)
@@ -96,12 +139,14 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->next = NULL;   // initialize queue next pointer
+  p->priority = 15; // initialize priority
   
-  //**** add
-  if(priority_q[p->priority] == NULL)
-    priority_q[p->priority] = List_create();
-
-  List_push(priority_q[p->priority], p);
+  //**** 
+  //cprintf("add in userinit\n");
+  acquire(&ptable.lock);
+  addtoq(p);
+  release(&ptable.lock);
   //****
 }
 
@@ -144,12 +189,11 @@ fork(void)
     np->kstack = 0;
     np->state = UNUSED;
 
-    //**** remove
-    if(np->link != NULL) {
-      //take out of list
-      List_remove(priority_q[np->priority], np->link);
-      np->link = NULL;
-    }
+    //**** remove--this might be not what I want
+    //cprintf("remove in fork\n");
+    acquire(&ptable.lock);
+    removefromq(np);
+    release(&ptable.lock);
     //****
 
     return -1;
@@ -157,6 +201,8 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
+  np->priority = proc->priority; // Initialize priority
+  np->next = NULL;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -170,10 +216,7 @@ fork(void)
   np->state = RUNNABLE;
   
   //*** add
-  if(priority_q[np->priority] == NULL)
-    priority_q[np->priority] = List_create();
-
-  List_push(priority_q[np->priority], np);
+  addtoq(np);
   //***
 
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -220,12 +263,9 @@ exit(void)
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   
-  //**** remove
-  if(proc->link != NULL) {
-  //take out of list
-    List_remove(priority_q[proc->priority], proc->link);
-    proc->link = NULL;
-  }
+  //**** remove--this may be unneccessary
+  //cprintf("remove in exit\n");
+  removefromq(proc);
   //****
   
   sched();
@@ -288,16 +328,22 @@ scheduler(void)
 {
   struct proc *p;
   int i;
+#if 0
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED)
+      cprintf("proc %d has priority  %d\n", p->pid, p->priority);
+  }
+#endif
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     acquire(&ptable.lock);
-    // Loop through priority queues looking for runnable processes
+    // Loop through priority queues looking for runnable processe
     for(i = 0; i < 32; i++) {
       if(priority_q[i] != NULL) {
-        p = priority_q[i]->head->p;
+        p = priority_q[i];
 
 #if 0
       }
@@ -316,11 +362,8 @@ scheduler(void)
         p->state = RUNNING;
 
         //**** remove
-        if(p->link != NULL) {
-          //take out of list
-          List_remove(priority_q[p->priority], p->link);
-          p->link = NULL;
-        }
+        //cprintf("remove in scheduler\n");
+        removefromq(p);
         //****
 
         swtch(&cpu->scheduler, proc->context);
@@ -364,10 +407,8 @@ yield(void)
   proc->state = RUNNABLE;
 
   //**** add
-  if(priority_q[proc->priority] == NULL)
-    priority_q[proc->priority] = List_create();
-
-  List_push(priority_q[proc->priority], proc);
+  //cprintf("add in yield\n");
+  addtoq(proc);
   //****
 
   sched();
@@ -419,14 +460,11 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
-
-  //**** remove
-  if(proc->link != NULL) {
-  //take out of list
-    List_remove(priority_q[proc->priority], proc->link);
-    proc->link = NULL;
-  }
+#if 0
+  //**** remove--shouldn't need this
+  removefromq(proc);
   //****
+#endif
 
   sched();
 
@@ -449,15 +487,14 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
     
-    //**** add
-    if(priority_q[p->priority] == NULL)
-      priority_q[p->priority] = List_create();
-
-    List_push(priority_q[p->priority], p);
-    //****
+      //**** add
+      //cprintf("add in wakeup1\n");
+      addtoq(p);
+      //****
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -486,9 +523,8 @@ kill(int pid)
         p->state = RUNNABLE;
 
         //**** add
-        if(priority_q[p->priority] == NULL)
-          priority_q[p->priority] = List_create();
-        List_push(priority_q[p->priority], p);
+        //cprintf("add in kill\n");
+        addtoq(p);
         //****
       }
 
