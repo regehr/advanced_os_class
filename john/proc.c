@@ -72,7 +72,6 @@ found:
   p-> priority = 0;
   //need to malloc size??
    p->next = 0;
-   p->prev = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -114,7 +113,6 @@ int ready1(struct proc * process)
           p = p->next;
         }
       p->next = process;
-      process->prev = p;
     }
   else
     {
@@ -253,7 +251,6 @@ exit(void)
 
   iput(proc->cwd);
   proc->cwd = 0;
-  cprintf("acquire exit");
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -343,8 +340,6 @@ scheduler(void)
             {
               struct proc *temp = p->next;
               p->next = 0;
-              if(temp)
-                temp->prev = 0;
               ready_q.proc[i] = temp;
 
 
