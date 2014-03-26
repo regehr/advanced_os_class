@@ -69,7 +69,7 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   //set high prority
-  p-> priority = 0;
+  p-> priority = 15;
   //need to malloc size??
    p->next = 0;
   release(&ptable.lock);
@@ -96,6 +96,23 @@ found:
   p->context->eip = (uint)forkret;
 
   return p;
+}
+
+
+int setpriority(int pid, int priority)
+{
+  struct proc *p;
+  if(priority > 31 || priority < 0)
+    return -1;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if(p->pid == pid)
+        {
+          p->priority = priority;
+          return 1;
+        }
+    }
+  return -1; 
 }
 
 
