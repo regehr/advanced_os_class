@@ -6,7 +6,6 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
-#include "spinlock.h"
 
 int
 exec(char *path, char **argv)
@@ -18,10 +17,9 @@ exec(char *path, char **argv)
   struct inode *ip;
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
-  cprintf("here\n");
+
   if((ip = namei(path)) == 0)
     return -1;
-  cprintf("here2\n");
   ilock(ip);
   pgdir = 0;
 
@@ -90,7 +88,6 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
-  ready(proc);
   switchuvm(proc);
   freevm(oldpgdir);
   return 0;

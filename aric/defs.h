@@ -108,7 +108,6 @@ int             fork(void);
 int             growproc(int);
 int             kill(int);
 void            pinit(void);
-void            rQinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
@@ -117,7 +116,6 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-int setpriority(int, int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

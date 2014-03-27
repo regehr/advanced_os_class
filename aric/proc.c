@@ -5,21 +5,17 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "spinlock.h"
 
-#define assert(exp) if (exp) ; else AssertionFailure( #exp, __FILE__, __LINE__ ) 
-
-static void AssertionFailure(char *exp, char *file, int line)
-{
-  cprintf("Assertion '%s' failed at line %d of file %s\n", exp, line, file);
-  panic("");
-}
-
+#ifndef NULL
+#define NULL 0
+#endif
 
 struct {
-  struct spinlock lock;
-  struct proc proc[NPROC];
+  struct spinlock lock;         // Lock for making threading work.
+  struct proc proc[NPROC];      // Process table
+  struct proc *first;           // Pointer to the first entry in the ready queue. Null if empty
 } ptable;
-
 
 static struct proc *initproc;
 
@@ -28,105 +24,105 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
-int ready1(struct proc* process);
+
+// Adds the provided process to the ready queue, and sets state to runnable.
+void
+rdy_enq(struct proc* new)
+{
+    //Assert(proc->state != RUNNABLE);
+
+    // If table is empty, assign to first:
+    if (ptable.first == NULL)
+        ptable.first = new;
+    else
+    {
+        struct proc* cur = ptable.first;
+        // If our priority is less than cur, put it at the front:
+        if (new->priority < cur->priority)
+        {
+            ptable.first = new;
+            new->next = cur;
+        }
+
+        while (cur->next != NULL)
+        {
+            // if our priority is now less than next, put it here:
+            if (new->priority < cur->next->priority)
+            {
+                new->next = cur->next;
+                cur->next = new;
+                goto inserted;
+            }
+            
+            // Otherwise, proceed to the next one:
+            cur = cur->next;
+        }
+        
+        // Found the end, so just put it there:
+        cur->next = new;
+    }
+
+inserted:
+    new->state = RUNNABLE;
+}
+
+// Removes the first element in the ready queue, and returns a pointer to it.
+// If there is nothing in the ready queue, returns null.
+// NOTE: does not assign state, so please assign that yourself!
+struct proc*
+rdy_deq()
+{
+    if (ptable.first == NULL)
+        return NULL;
+
+    struct proc* ret = ptable.first;
+    ptable.first = ret->next;
+    // Since this proc is leaving the ready queue, we don't want it
+    // pointing in there - just in case.
+    ret->next = NULL;
+    return ret;
+}
+
+int
+change_prio(uint pid, int new_prio)
+{
+    // Find process with the given priority:
+    int i;
+    struct proc* p = NULL;
+    for (i = 0; i < NPROC; i++)
+    {
+        if (ptable.proc[i].pid == pid)
+            p = &ptable.proc[i];
+    }
+
+    // If we didn't find one, return error:
+    if (p == NULL)
+        return -1;
+
+    // Assign our new priority:
+    p->priority = new_prio;
+
+    // If we did find one, and it's in the ready queue, move it:
+    if (p->state == RUNNABLE)
+    {
+        struct proc* cur = ptable.first;
+        while (cur->next != p)
+            cur = cur->next;
+        cur->next = p->next;
+        p->next = NULL;
+        rdy_enq(p);
+    }
+
+    return 0;
+}
 
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  // Guarantee first is null by default
+  ptable.first = NULL;
 }
-
-void rQinit(void){
-  int i;
-  initlock(&readyQ.lock, "readyQ");
-  for(i=0;i<32;i++){
-    readyQ.proc[i] = 0;
-  }
-}
-
-
-int setpriority(int pid, int priority)
-{
-  int prev_pri = 31;
-  struct proc *p;
-  struct proc *temp;
-
-  if(priority > 31 || priority < 0)
-    return -1;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      if(p->pid == pid){
-	  prev_pri = p->priority;
-          p->priority = priority;
-	  if(p->state == RUNNABLE){
-	    assert(readyQ.proc[prev_pri] != 0);
-	    temp = readyQ.proc[prev_pri];
-	    while(temp->next != 0 && temp != p){
-	      temp = temp->next;
-	    }
-	    assert(temp==p);
-	    //we now hold p -- Perhaps we dont need to iterate through the readyq?
-	    //if temp was the only process on the readyQ for that pri
-	    if(temp->next == 0 && temp->prev==0){
-	      readyQ.proc[prev_pri] = 0;
-	    }
-	    //we were the head of the list
-	    else if(temp->next !=0 && temp->prev == 0){
-	      readyQ.proc[prev_pri] = temp->next;
-	      temp->next =0;
-	    }
-	    //we were the last on the list
-	    else if(temp->next == 0 && temp->prev != 0){
-	      temp->prev->next = 0;
-	      temp->prev = 0;
-	    }
-	    //I think thats all the cases?
-	    ready(temp);
-	  }
-	  if(p->state == RUNNING){
-	    //determine if we need to evict process off cpu
-	  }
-          return 1;
-        }
-    }
-  return -1;
-}
-
-int ready(struct proc* process){
-  int ret;
-  acquire(&ptable.lock);
-  ret = ready1(process);
-  release(&ptable.lock);
-  return ret;
-}
-
-int ready1(struct proc* process){
-  
-
-  //  cprintf("in ready with process %d, and priority %d pid of %d\n",process,process->priority, process->pid);
- 
-  struct proc *proc;
-
-  //ready to place on table
-  if(!process){
-    return -1;
-  }
-  if((proc = readyQ.proc[process->priority])){
-    while(proc->next){
-      proc = proc->next;
-    }
-    proc->next = process;
-    process->prev = proc;
-    process->next = 0;
-  }
-  else{
-    readyQ.proc[process->priority] = process;
-    process->next = 0;
-    process->prev = 0;
-  }
-  return 1;
-}
-
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -136,7 +132,6 @@ int ready1(struct proc* process){
 static struct proc*
 allocproc(void)
 {
-  cprintf("in allocproc\n");
   struct proc *p;
   char *sp;
 
@@ -173,6 +168,9 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // By default, give process average priority: 16
+  p->priority = 16;
+
   return p;
 }
 
@@ -183,7 +181,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  cprintf("in user init");
+  
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -198,17 +196,12 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
-  p->priority = 14;
-  p->prev = 0;
-  p->next = 0;
-
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
-  cprintf("userinit setting on ready\n");
-  ready(p);
+  //p->state = RUNNABLE;
+  rdy_enq(p);
 }
 
 // Grow current process's memory by n bytes.
@@ -239,7 +232,7 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-  cprintf("in fork\n");
+
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -264,8 +257,9 @@ fork(void)
   np->cwd = idup(proc->cwd);
  
   pid = np->pid;
-  np->state = RUNNABLE;
-  ready(np);
+  np->priority = np->parent->priority;  // By default, assume child has same prio as parent
+  //np->state = RUNNABLE;
+  rdy_enq(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -309,7 +303,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
-  sched(); 
+  sched();
   panic("zombie exit");
 }
 
@@ -367,39 +361,30 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p = 0;
-  int i;
+  struct proc *p;
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
-
+    // Dequeue a process to run
     acquire(&ptable.lock);
-    for(i=0;i<32;i++){
-      if(readyQ.proc[i]){
-	p=readyQ.proc[i];
-	if(p->next == 0){
-	  readyQ.proc[i] = 0;
-	}
-	else{
-	  readyQ.proc[i] = p->next;
-	  p->next->prev = 0;
-	}
-	p->next = 0;
-	p->prev = 0;
-	
-	//	cprintf("Found proc to run\n");
-	proc=p;
-	switchuvm(p);
-	p->state = RUNNING;
-	swtch(&cpu->scheduler, proc->context);
-	switchkvm();
-	proc=p=0;
-	break;
-      }
+
+    if ((p = rdy_deq()) != NULL)
+    {
+        // Switch to the new process:
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&cpu->scheduler, proc->context);
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        proc = 0;
     }
+
     release(&ptable.lock);
-    
 
     /*
     // Loop over process table looking for process to run.
@@ -421,8 +406,8 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       proc = 0;
     }
-    release(&ptable.lock);*/
-
+    release(&ptable.lock);
+    */
   }
 }
 
@@ -451,8 +436,8 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE;
-  ready1(proc);
+  //proc->state = RUNNABLE;
+  rdy_enq(proc);
   sched();
   release(&ptable.lock);
 }
@@ -464,8 +449,8 @@ forkret(void)
 {
   static int first = 1;
   // Still holding ptable.lock from scheduler.
-  //release(&ptable.lock);
   release(&ptable.lock);
+
   if (first) {
     // Some initialization functions must be run in the context
     // of a regular process (e.g., they call sleep), and thus cannot 
@@ -522,12 +507,12 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == SLEEPING && p->chan == chan){
-      p->state = RUNNABLE;
-      ready1(p);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == SLEEPING && p->chan == chan)
+    {
+      //p->state = RUNNABLE;
+      rdy_enq(p);
     }
-  }
 }
 
 // Wake up all processes sleeping on chan.
@@ -552,9 +537,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING){
-        p->state = RUNNABLE;
-	ready1(p);
+      if(p->state == SLEEPING)
+      {
+        //p->state = RUNNABLE;
+        rdy_enq(p);
       }
       release(&ptable.lock);
       return 0;
