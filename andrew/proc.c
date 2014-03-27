@@ -9,15 +9,11 @@
 
 /* Andrew Riley */
 
-
-/* priority queue linked list */
+/* priority queue */
 struct {
-  struct proc *head;
-  struct proc *tail;
-} priority_queue;
-
-struct priority_queue p_queue[32]; // queue
-
+  struct spinlock lock;
+  struct proc *proc[32];
+} p_queue;
 
 
 
@@ -86,6 +82,29 @@ found:
 
   return p;
 }
+
+/* setpriority of a pid */
+int
+setpriority(int pid, int priority)
+{
+  struct proc *p;
+
+  // check for valid priority rank
+  if (priority < 0 || priority > 31)
+     return -1;
+
+  // find process with matching pid
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if (pid == p->pid) {
+         p->priority = priority;
+         return 0; // pid found and priority set
+      }
+  }
+
+  return -1; // pid does not exist
+
+}
+
 
 //PAGEBREAK: 32
 // Set up first user process.

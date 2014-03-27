@@ -6,6 +6,20 @@
 #include "mmu.h"
 #include "proc.h"
 
+/* sys_setprior system call */
+int
+sys_setprior(void)
+{
+  int pid, priority;
+
+  if (argint(0, &pid) < 0 && argint(0, &priority) < 0)
+     return -1;
+  else if (setpriority(pid, priority) < 0)
+     return -1;
+
+  return 0;
+}
+
 int
 sys_fork(void)
 {
