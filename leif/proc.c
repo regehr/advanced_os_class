@@ -474,14 +474,14 @@ int add_process(struct proc * p)
     p->prev = 0;
     p->next = 0;
     release(&ptable.lock);
-    return 0;
+    return -1;
   }
   while(list->next) {
     list = list->next;
   }
   list->next = p;
   p->prev    = list;
-  return 1;
+  return 0;
 }
 
 int remove_process(struct proc * p)
@@ -490,7 +490,7 @@ int remove_process(struct proc * p)
   p->prev->next = p->next;
   p->prev = 0;
   p->next = 0;
-  return 1;
+  return 0;
 }
 
 int refresh_process(struct proc * p)
