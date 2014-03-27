@@ -102,16 +102,20 @@ found:
 int setpriority(int pid, int priority)
 {
   struct proc *p;
+ 
   if(priority > 31 || priority < 0)
     return -1;
+  acquire(&ptable.lock); 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       if(p->pid == pid)
         {
           p->priority = priority;
+          release(&ptable.lock);
           return 1;
         }
     }
+  release(&ptable.lock);
   return -1; 
 }
 
