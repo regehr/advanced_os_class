@@ -6,6 +6,15 @@
 #include "x86.h"
 #include "proc.h"
 
+#define assert(exp) if (exp) ; else AssertionFailure( #exp, __FILE__, __LINE__ ) 
+
+static void AssertionFailure(char *exp, char *file, int line)
+{
+  cprintf("Assertion '%s' failed at line %d of file %s\n", exp, line, file);
+  panic("");
+}
+
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -19,12 +28,12 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+int ready1(struct proc* process);
 
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  
 }
 
 void rQinit(void){
@@ -35,17 +44,69 @@ void rQinit(void){
   }
 }
 
+
+int setpriority(int pid, int priority)
+{
+  int prev_pri = 31;
+  struct proc *p;
+  struct proc *temp;
+
+  if(priority > 31 || priority < 0)
+    return -1;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if(p->pid == pid){
+	  prev_pri = p->priority;
+          p->priority = priority;
+	  if(p->state == RUNNABLE){
+	    assert(readyQ.proc[prev_pri] != 0);
+	    temp = readyQ.proc[prev_pri];
+	    while(temp->next != 0 && temp != p){
+	      temp = temp->next;
+	    }
+	    assert(temp==p);
+	    //we now hold p -- Perhaps we dont need to iterate through the readyq?
+	    //if temp was the only process on the readyQ for that pri
+	    if(temp->next == 0 && temp->prev==0){
+	      readyQ.proc[prev_pri] = 0;
+	    }
+	    //we were the head of the list
+	    else if(temp->next !=0 && temp->prev == 0){
+	      readyQ.proc[prev_pri] = temp->next;
+	      temp->next =0;
+	    }
+	    //we were the last on the list
+	    else if(temp->next == 0 && temp->prev != 0){
+	      temp->prev->next = 0;
+	      temp->prev = 0;
+	    }
+	    //I think thats all the cases?
+	    ready(temp);
+	  }
+	  if(p->state == RUNNING){
+	    //determine if we need to evict process off cpu
+	  }
+          return 1;
+        }
+    }
+  return -1;
+}
+
 int ready(struct proc* process){
+  int ret;
+  acquire(&ptable.lock);
+  ret = ready1(process);
+  release(&ptable.lock);
+  return ret;
+}
+
+int ready1(struct proc* process){
   
 
-  cprintf("in ready with process %d, and priority %d pid of %d\n",process,process->priority, process->pid);
+  //  cprintf("in ready with process %d, and priority %d pid of %d\n",process,process->priority, process->pid);
  
   struct proc *proc;
-  int bool =0;
-  if(ptable.lock.locked != 1){
-    acquire(&ptable.lock);
-    bool = 1;
-  }
+
   //ready to place on table
   if(!process){
     return -1;
@@ -62,10 +123,6 @@ int ready(struct proc* process){
     readyQ.proc[process->priority] = process;
     process->next = 0;
     process->prev = 0;
-  }
-  
-  if(bool){
-    release(&ptable.lock);
   }
   return 1;
 }
@@ -141,7 +198,7 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
-  p->priority = 0;
+  p->priority = 14;
   p->prev = 0;
   p->next = 0;
 
@@ -208,7 +265,6 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
-  cprintf("putting on ready q\n");
   ready(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
@@ -253,7 +309,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
-  sched();
+  sched(); 
   panic("zombie exit");
 }
 
@@ -332,7 +388,7 @@ scheduler(void)
 	p->next = 0;
 	p->prev = 0;
 	
-	cprintf("Found proc to run\n");
+	//	cprintf("Found proc to run\n");
 	proc=p;
 	switchuvm(p);
 	p->state = RUNNING;
@@ -396,7 +452,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
-  ready(proc);
+  ready1(proc);
   sched();
   release(&ptable.lock);
 }
@@ -469,7 +525,7 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == SLEEPING && p->chan == chan){
       p->state = RUNNABLE;
-      ready(p);
+      ready1(p);
     }
   }
 }
@@ -478,9 +534,9 @@ wakeup1(void *chan)
 void
 wakeup(void *chan)
 {
-  //acquire(&ptable.lock);
+  acquire(&ptable.lock);
   wakeup1(chan);
-  //release(&ptable.lock);
+  release(&ptable.lock);
 }
 
 // Kill the process with the given pid.
@@ -498,7 +554,7 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING){
         p->state = RUNNABLE;
-	ready(p);
+	ready1(p);
       }
       release(&ptable.lock);
       return 0;
