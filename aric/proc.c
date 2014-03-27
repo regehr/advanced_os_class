@@ -37,11 +37,32 @@ rdy_enq(struct proc* new)
     else
     {
         struct proc* cur = ptable.first;
+        // If our priority is less than cur, put it at the front:
+        if (new->priority < cur->priority)
+        {
+            ptable.first = new;
+            new->next = cur;
+        }
+
         while (cur->next != NULL)
+        {
+            // if our priority is now less than next, put it here:
+            if (new->priority < cur->next->priority)
+            {
+                new->next = cur->next;
+                cur->next = new;
+                goto inserted;
+            }
+            
+            // Otherwise, proceed to the next one:
             cur = cur->next;
+        }
+        
+        // Found the end, so just put it there:
         cur->next = new;
     }
 
+inserted:
     new->state = RUNNABLE;
 }
 
@@ -56,7 +77,43 @@ rdy_deq()
 
     struct proc* ret = ptable.first;
     ptable.first = ret->next;
+    // Since this proc is leaving the ready queue, we don't want it
+    // pointing in there - just in case.
+    ret->next = NULL;
     return ret;
+}
+
+int
+change_prio(uint pid, int new_prio)
+{
+    // Find process with the given priority:
+    int i;
+    struct proc* p = NULL;
+    for (i = 0; i < NPROC; i++)
+    {
+        if (ptable.proc[i].pid == pid)
+            p = &ptable.proc[i];
+    }
+
+    // If we didn't find one, return error:
+    if (p == NULL)
+        return -1;
+
+    // Assign our new priority:
+    p->priority = new_prio;
+
+    // If we did find one, and it's in the ready queue, move it:
+    if (p->state == RUNNABLE)
+    {
+        struct proc* cur = ptable.first;
+        while (cur->next != p)
+            cur = cur->next;
+        cur->next = p->next;
+        p->next = NULL;
+        rdy_enq(p);
+    }
+
+    return 0;
 }
 
 void
@@ -111,6 +168,9 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // By default, give process average priority: 16
+  p->priority = 16;
+
   return p;
 }
 
@@ -140,7 +200,8 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
+  //p->state = RUNNABLE;
+  rdy_enq(p);
 }
 
 // Grow current process's memory by n bytes.
@@ -196,7 +257,9 @@ fork(void)
   np->cwd = idup(proc->cwd);
  
   pid = np->pid;
-  np->state = RUNNABLE;
+  np->priority = np->parent->priority;  // By default, assume child has same prio as parent
+  //np->state = RUNNABLE;
+  rdy_enq(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -304,6 +367,26 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
+    // Dequeue a process to run
+    acquire(&ptable.lock);
+
+    if ((p = rdy_deq()) != NULL)
+    {
+        // Switch to the new process:
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&cpu->scheduler, proc->context);
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        proc = 0;
+    }
+
+    release(&ptable.lock);
+
+    /*
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -324,7 +407,7 @@ scheduler(void)
       proc = 0;
     }
     release(&ptable.lock);
-
+    */
   }
 }
 
@@ -353,7 +436,8 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE;
+  //proc->state = RUNNABLE;
+  rdy_enq(proc);
   sched();
   release(&ptable.lock);
 }
@@ -425,7 +509,10 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
+    {
+      //p->state = RUNNABLE;
+      rdy_enq(p);
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -451,7 +538,10 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
-        p->state = RUNNABLE;
+      {
+        //p->state = RUNNABLE;
+        rdy_enq(p);
+      }
       release(&ptable.lock);
       return 0;
     }
