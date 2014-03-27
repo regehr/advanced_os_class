@@ -29,7 +29,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  initlock(&ready_queue.lock, "ready");
+  // initlock(&ready_queue.lock, "ready");
   int i;
   for(i = 0; i < 32; i ++)
     {
@@ -112,7 +112,9 @@ userinit(void)
 
   p->state = RUNNABLE;
   p->priority = 0;
+  acquire(&ptable.lock);
   add_to_end(p->priority, p);
+  release(&ptable.lock);
   // add to ready queue?
 }
 
@@ -172,20 +174,28 @@ fork(void)
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   np->priority = proc->priority; // just copy parent priority
+  acquire(&ptable.lock);
   add_to_end(np->priority, np); // add to ready queue
+  release(&ptable.lock);
   return pid;
 }
 
+
 void add_to_end(uint priority, struct proc * p)
 {
-  acquire(&ready_queue.lock);
+  // ptable lock must be held already, this solves the problem of trying to acquire a lock already held which 
+  // will happen in man functions
+  // acquire(&ptable.lock);
+  if(!holding(&ptable.lock))
+    panic("not holding ptable.lock");
+
   struct proc * p2 = ready_queue.ready[priority];
   if(p2 == 0)
     {
       ready_queue.ready[priority] = p;
       p->prev = 0;
       p->next = 0;
-      release(&ready_queue.lock);
+      //  release(&ptable.lock);
       return;
     }
   while(p2->next != 0)
@@ -195,22 +205,23 @@ void add_to_end(uint priority, struct proc * p)
   p2->next = p;
   p->next = 0;
   p->prev = p2;
-  release(&ready_queue.lock);
+  //  release(&ptable.lock);
   return;
 }
 
-// return -1 on error
+
 void remove_from_ready(uint priority, struct proc * p)
 {
   struct proc * prev;
   struct proc * next;
-  // should just be able to say
-  acquire(&ready_queue.lock);
+  // ptable lock must be held already
+  if(!holding(&ptable.lock))
+    panic("sched ptable.lock");
+
   if(p->next == 0)
     {
       prev = p->prev;
       prev->next = 0;
-      release(&ready_queue.lock);
       return;
     }
   else
@@ -219,7 +230,6 @@ void remove_from_ready(uint priority, struct proc * p)
       prev = p->prev;
       next->prev = prev;;
       prev->next = next;
-      release(&ready_queue.lock);
       return;
     }
   
@@ -329,13 +339,15 @@ scheduler(void)
     sti();
 
     // Loop over process table looking for process to run.
-    /*
+    
     acquire(&ptable.lock);
+    /*
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
     */
-    acquire(&ready_queue.lock);
+    procdump();
+	// acquire(&ptable.lock);
     for(i = 0; i < PRIORITIES; i ++)
       {
 	p = ready_queue.ready[i];
@@ -364,7 +376,7 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       proc = 0;
     }
-  release(&ready_queue.lock);
+  release(&ptable.lock);
   // release(&ptable.lock);
 
 }
@@ -376,7 +388,7 @@ sched(void)
 {
   int intena;
 
-  if(!holding(&ready_queue.lock))//(&ptable.lock))
+  if(!holding(&ptable.lock))//&ready_queue.lock))//(&ptable.lock))
     panic("sched ptable.lock");
   if(cpu->ncli != 1)
     panic("sched locks");
@@ -395,6 +407,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
+  add_to_end(proc->priority, proc);
   sched();
   release(&ptable.lock);
 }
@@ -446,7 +459,7 @@ sleep(void *chan, struct spinlock *lk)
   proc->chan = chan;
   prev = proc->state;
   proc->state = SLEEPING;
-  if(prev == RUNNABLE) // should be on ready queue
+  if(prev == RUNNABLE) // not sure this will happen, it should be running? so already not on ready queue, but just in case
     remove_from_ready(proc->priority, proc);
   sched();
 
