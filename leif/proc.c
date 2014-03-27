@@ -468,32 +468,28 @@ procdump(void)
 
 int add_process(struct proc * p)
 {
-  acquire(&ptable.lock);
   struct proc * list = ptable.ready_queue[p->priority];
   if(!list) {
     ptable.ready_queue[p->priority] = p;
     p->prev = 0;
     p->next = 0;
     release(&ptable.lock);
-    return 0;
+    return -1;
   }
   while(list->next) {
     list = list->next;
   }
   list->next = p;
   p->prev    = list;
-  release(&ptable.lock);
   return 0;
 }
 
 int remove_process(struct proc * p)
 {
-  acquire(&ptable.lock);
   p->next->prev = p->prev;
   p->prev->next = p->next;
   p->prev = 0;
   p->next = 0;
-  release(&ptable.lock);
   return 0;
 }
 
