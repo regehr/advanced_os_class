@@ -118,10 +118,11 @@ sys_setpriority(void)
     return -1;
   }
   p->priority = priority;
-  release(&ptable.lock);
 
   // Refresh process in table.
   refresh_process(p);
+
+  release(&ptable.lock);
 
   return 0;
 }
