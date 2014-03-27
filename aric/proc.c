@@ -56,6 +56,9 @@ rdy_deq()
 
     struct proc* ret = ptable.first;
     ptable.first = ret->next;
+    // Since this proc is leaving the ready queue, we don't want it
+    // pointing in there - just in case.
+    ret->next = NULL;
     return ret;
 }
 
@@ -140,7 +143,8 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
+  //p->state = RUNNABLE;
+  rdy_enq(p);
 }
 
 // Grow current process's memory by n bytes.
@@ -196,7 +200,8 @@ fork(void)
   np->cwd = idup(proc->cwd);
  
   pid = np->pid;
-  np->state = RUNNABLE;
+  //np->state = RUNNABLE;
+  rdy_enq(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -304,6 +309,26 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
+    // Dequeue a process to run
+    acquire(&ptable.lock);
+
+    if ((p = rdy_deq()) != NULL)
+    {
+        // Switch to the new process:
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&cpu->scheduler, proc->context);
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        proc = 0;
+    }
+
+    release(&ptable.lock);
+
+    /*
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -324,7 +349,7 @@ scheduler(void)
       proc = 0;
     }
     release(&ptable.lock);
-
+    */
   }
 }
 
@@ -353,7 +378,8 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE;
+  //proc->state = RUNNABLE;
+  rdy_enq(proc);
   sched();
   release(&ptable.lock);
 }
@@ -425,7 +451,10 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
-      p->state = RUNNABLE;
+    {
+      //p->state = RUNNABLE;
+      rdy_enq(p);
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -451,7 +480,10 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
-        p->state = RUNNABLE;
+      {
+        //p->state = RUNNABLE;
+        rdy_enq(p);
+      }
       release(&ptable.lock);
       return 0;
     }
