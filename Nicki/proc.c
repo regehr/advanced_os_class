@@ -352,7 +352,7 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 #endif
         if(p->state != RUNNABLE)
-          continue;
+          panic("Not runnable in ready queue");
 
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
