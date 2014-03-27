@@ -67,7 +67,11 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   struct proc *next;           // Next process in the ready queue. Null if there is not one
+  int priority;                // Priority of this process - 0-31, 0 highest
 };
+
+// Changes priority of the process with the given PID
+int change_prio(uint pid, int new_prio);
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
