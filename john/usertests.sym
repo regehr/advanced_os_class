@@ -24,6 +24,7 @@
 000058e0 base
 000058e8 freep
 00004023 morecore
+00000000 
 000039dd strcpy
 000009ee exitwait
 00003d95 printf

@@ -23,6 +23,7 @@
 00000b6c base
 00000b74 freep
 000009bf morecore
+00000000 
 00000379 strcpy
 00000000 fmtname
 00000731 printf
