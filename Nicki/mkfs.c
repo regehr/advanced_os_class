@@ -3,11 +3,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <assert.h>
-
-#ifndef STDLIB_H
 #include <stdlib.h>
-#define STDLIB_H
-#endif
 
 #define stat xv6_stat  // avoid clash with host struct stat
 #include "types.h"
