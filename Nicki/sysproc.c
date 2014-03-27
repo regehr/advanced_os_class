@@ -93,7 +93,7 @@ int
 sys_set_priority(void)
 {
   int pid, priority;
-  struct proc *p;
+  struct proc *p, *p_remove, *p_add;
 
   // Get pid and priority from user
   if((argint(0,&pid) < 0) ||
@@ -115,6 +115,40 @@ sys_set_priority(void)
   // Success!!
   found:
   p->priority = priority;
+
+  // remove from current priority queue
+  p_remove = priority_q[p->priority];
+  if(p_remove == NULL)
+    goto add; //somehow the current process wasn't in a queue
+  // If we are removing the first item
+  if(p_remove->pid == p->pid) {
+    priority_q[p->priority]= p_remove->next;
+    p->next = NULL;
+    goto add;
+  }
+  while(p_remove->next != NULL) {
+    if(p_remove->next->pid == p->pid) {
+      p_remove->next = p->next;
+      p->next = NULL;
+      goto add;
+    }
+    p_remove = p_remove->next;
+  }
+
+add:
+  // add to new priority queue
+  if(priority_q[p->priority] == NULL) {
+    priority_q[p->priority] = p;
+    goto end;
+  }
+  p_add = priority_q[p->priority];
+  while(p_add->next != NULL) {
+    p_add = p_add->next;
+  }
+  p_add->next = p;
+  p->next = NULL;
+
+end:
   release(&ptable.lock);
   return 0;
 }
