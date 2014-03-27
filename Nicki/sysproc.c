@@ -114,7 +114,6 @@ sys_set_priority(void)
 
   // Success!!
   found:
-  p->priority = priority;
 
   // remove from current priority queue
   p_remove = priority_q[p->priority];
@@ -134,6 +133,9 @@ sys_set_priority(void)
     }
     p_remove = p_remove->next;
   }
+
+  // Change priority
+  p->priority = priority;
 
 add:
   // add to new priority queue
