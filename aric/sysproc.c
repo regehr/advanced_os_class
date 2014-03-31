@@ -96,5 +96,5 @@ sys_setpriority(void)
   int new_prio;
   argint(0, (int*)&pid);
   argint(1, &new_prio);
-  return change_prio(pid, new_prio);
+  return change_prio1(pid, new_prio);
 }

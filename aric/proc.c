@@ -116,6 +116,35 @@ change_prio(uint pid, int new_prio)
     return 0;
 }
 
+// Placeholder versions of these functions to call when outside of a lock:
+void
+rdy_enq1(struct proc* new)
+{
+    acquire(&ptable.lock);
+    rdy_enq(new);
+    release(&ptable.lock);
+}
+
+struct proc*
+rdy_deq1()
+{
+    struct proc* ret;
+    acquire(&ptable.lock);
+    ret = rdy_deq();
+    release(&ptable.lock);
+    return ret;
+}
+
+int
+change_prio1(uint pid, int new_prio)
+{
+    int ret;
+    acquire(&ptable.lock);
+    ret = change_prio(pid, new_prio);
+    release(&ptable.lock);
+    return ret;
+}
+
 void
 pinit(void)
 {
@@ -201,7 +230,7 @@ userinit(void)
   p->cwd = namei("/");
 
   //p->state = RUNNABLE;
-  rdy_enq(p);
+  rdy_enq1(p);
 }
 
 // Grow current process's memory by n bytes.
@@ -259,7 +288,7 @@ fork(void)
   pid = np->pid;
   np->priority = np->parent->priority;  // By default, assume child has same prio as parent
   //np->state = RUNNABLE;
-  rdy_enq(np);
+  rdy_enq1(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }

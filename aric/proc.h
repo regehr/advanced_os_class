@@ -72,6 +72,8 @@ struct proc {
 
 // Changes priority of the process with the given PID
 int change_prio(uint pid, int new_prio);
+// Changes priority, and obtains the lock for you
+int change_prio1(uint pid, int new_prio);
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
