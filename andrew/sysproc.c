@@ -14,7 +14,7 @@ sys_setprior(void)
 
   if (argint(0, &pid) < 0 && argint(0, &priority) < 0)
      return -1;
-  else if (setpriority(pid, priority) < 0)
+  else if (setpriority_pid(pid, priority) < 0)
      return -1;
 
   return 0;

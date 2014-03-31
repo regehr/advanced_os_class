@@ -12,7 +12,7 @@
 /* priority queue */
 struct {
   struct spinlock lock;
-  struct proc *proc[32];
+  struct proc *ready[32];
 } p_queue;
 
 
@@ -85,7 +85,7 @@ found:
 
 /* setpriority of a pid */
 int
-setpriority(int pid, int priority)
+setpriority_pid(int pid, int priority)
 {
   struct proc *p;
 
@@ -95,14 +95,53 @@ setpriority(int pid, int priority)
 
   // find process with matching pid
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-      if (pid == p->pid) {
-         p->priority = priority;
-         return 0; // pid found and priority set
-      }
+      if (pid == p->pid)
+	 return setpriority_proc(p, priority);      
   }
 
   return -1; // pid does not exist
+}
 
+int
+setpriority_proc(struct proc* p, int priority)
+{
+  acquire(&ptable.lock);
+  
+  p->priority = priority;
+
+  if (p_queue.ready[p->priority] == 0) // is there a process already in this priority?
+      p_queue.ready[p->priority] = p;
+  else {
+	 struct proc *prior_p = p_queue.ready[p->priority];
+      	 while((prior_p = prior_p->next) != 0);
+	 prior_p->next = p;
+  }
+
+  p->next = 0;
+
+  release(&ptable.lock);
+
+  return 0; // pid found and priority set
+
+}
+
+struct proc*
+getpriority(int priority)
+{
+  if (!holding(&ptable.lock))
+     panic("getpriority - no lock acquired");
+
+  struct proc *head = p_queue.ready[priority];
+  struct proc *p = head;
+
+  if (p == 0) // no process?
+      return 0;
+
+  if (p->next != 0) // set next process to be head
+      p_queue.ready[priority] = head->next;
+
+  return p;
+  
 }
 
 
@@ -133,6 +172,9 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+  /* Setup initial priority queue */
+  setpriority_proc(p, 0);
 }
 
 // Grow current process's memory by n bytes.
@@ -189,6 +231,7 @@ fork(void) // give priority of parent process
  
   pid = np->pid;
   np->state = RUNNABLE;
+  setpriority_pid(pid, proc->priority);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -298,7 +341,7 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    /*for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
@@ -314,7 +357,17 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       proc = 0;
-    }
+    }*/
+
+    p = getpriority(p->priority);
+    proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+    swtch(&cpu->scheduler, proc->context);
+    switchkvm();
+
+    proc = 0;
+
     release(&ptable.lock);
 
   }
@@ -346,8 +399,9 @@ void
 yield(void) // call from trap.c
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE; 
-  // put current running process onto ready queue
+  proc->state = RUNNABLE;
+  setpriority_proc(proc, proc->priority);
+  
   sched(); // takes head of ready queue off
   release(&ptable.lock);
 }
@@ -418,8 +472,10 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      setpriority_proc(p, p->priority);
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -444,8 +500,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING) {
         p->state = RUNNABLE;
+	setpriority_proc(p, p->priority);
+      }
       release(&ptable.lock);
       return 0;
     }
