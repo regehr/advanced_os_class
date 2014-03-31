@@ -1,6 +1,10 @@
 // Segments in proc->gdt.
 #define NSEGS     7
 
+// Priority defs
+#define NPRIO       32
+#define MAX_PRIO    31
+
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below

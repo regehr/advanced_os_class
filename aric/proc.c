@@ -14,7 +14,8 @@
 struct {
   struct spinlock lock;         // Lock for making threading work.
   struct proc proc[NPROC];      // Process table
-  struct proc *first;           // Pointer to the first entry in the ready queue. Null if empty
+  struct proc *first[NPRIO];    // Pointers to the front of ready queues, sorted by
+                                // priority. Null if empty.
 } ptable;
 
 static struct proc *initproc;
@@ -29,40 +30,25 @@ static void wakeup1(void *chan);
 void
 rdy_enq(struct proc* new)
 {
-    //Assert(proc->state != RUNNABLE);
+    //if(new->state != RUNNABLE)
+    //    panic("Attempted to put non-runnable process on ready queue");
+    if(new->priority > MAX_PRIO)
+        panic("Attempted to put process on ready queue with invalid priority");
 
     // If table is empty, assign to first:
-    if (ptable.first == NULL)
-        ptable.first = new;
+    if (ptable.first[new->priority] == NULL)
+        ptable.first[new->priority] = new;
     else
     {
-        struct proc* cur = ptable.first;
-        // If our priority is less than cur, put it at the front:
-        if (new->priority < cur->priority)
-        {
-            ptable.first = new;
-            new->next = cur;
-        }
+        struct proc* cur = ptable.first[new->priority];
 
         while (cur->next != NULL)
-        {
-            // if our priority is now less than next, put it here:
-            if (new->priority < cur->next->priority)
-            {
-                new->next = cur->next;
-                cur->next = new;
-                goto inserted;
-            }
-            
-            // Otherwise, proceed to the next one:
             cur = cur->next;
-        }
         
         // Found the end, so just put it there:
         cur->next = new;
     }
 
-inserted:
     new->state = RUNNABLE;
 }
 
@@ -72,11 +58,18 @@ inserted:
 struct proc*
 rdy_deq()
 {
-    if (ptable.first == NULL)
+    // Find highest priority with element to be dequeued:
+    int cur_prio;
+    for (cur_prio = 0; cur_prio < NPRIO; cur_prio++)
+        if (ptable.first[cur_prio] != NULL)
+            break;
+
+    // We didn't find one, so return null
+    if (cur_prio == NPRIO)
         return NULL;
 
-    struct proc* ret = ptable.first;
-    ptable.first = ret->next;
+    struct proc* ret = ptable.first[cur_prio];
+    ptable.first[cur_prio] = ret->next;
     // Since this proc is leaving the ready queue, we don't want it
     // pointing in there - just in case.
     ret->next = NULL;
@@ -86,7 +79,7 @@ rdy_deq()
 int
 change_prio(uint pid, int new_prio)
 {
-    // Find process with the given priority:
+    // Find process with the given pid:
     int i;
     struct proc* p = NULL;
     for (i = 0; i < NPROC; i++)
@@ -99,19 +92,19 @@ change_prio(uint pid, int new_prio)
     if (p == NULL)
         return -1;
 
-    // Assign our new priority:
-    p->priority = new_prio;
-
     // If we did find one, and it's in the ready queue, move it:
     if (p->state == RUNNABLE)
     {
-        struct proc* cur = ptable.first;
+        struct proc* cur = ptable.first[p->priority];
         while (cur->next != p)
             cur = cur->next;
         cur->next = p->next;
         p->next = NULL;
         rdy_enq(p);
     }
+
+    // Assign our new priority:
+    p->priority = new_prio;
 
     return 0;
 }
@@ -150,7 +143,9 @@ pinit(void)
 {
   initlock(&ptable.lock, "ptable");
   // Guarantee first is null by default
-  ptable.first = NULL;
+  int i;
+  for (i = 0; i < NPRIO; i++)
+    ptable.first[i] = NULL;
 }
 
 //PAGEBREAK: 32
