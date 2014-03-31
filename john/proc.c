@@ -72,6 +72,7 @@ found:
   p-> priority = 15;
   //need to malloc size??
    p->next = 0;
+   p->prev = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -102,19 +103,54 @@ found:
 int setpriority(int pid, int priority)
 {
   struct proc *p;
+ 
   if(priority > 31 || priority < 0)
     return -1;
+  acquire(&ptable.lock); 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       if(p->pid == pid)
         {
           p->priority = priority;
+          //remove and put it back. 
+          if(p->state == RUNNABLE)
+            {
+              //if there is a next set prev to next
+              if(p->next)
+                {
+                  p->prev->next = p->next;
+                  p->next->prev = p->prev;
+                }
+              else //if no next just get rid of this off list
+                {
+                  p->prev->next = 0; 
+                }
+              //reset ourself. 
+               p->next = 0;
+               p->prev = 0; 
+               //find the new place to put it. 
+              struct proc *temp;
+
+              //now put in on the queue. 
+              if((temp = ready_q.proc[p->priority]))
+                {
+                  while(temp->next)
+                    temp = temp->next;
+                  temp->next = p;
+                  p->prev = temp; 
+                }
+              else
+                {
+                  ready_q.proc[p->priority] = p; 
+                }
+            }
+          release(&ptable.lock);
           return 1;
         }
     }
+  release(&ptable.lock);
   return -1; 
 }
-
 
 int ready1(struct proc * process)
 {
@@ -130,6 +166,7 @@ int ready1(struct proc * process)
           p = p->next;
         }
       p->next = process;
+      process->prev = p; 
     }
   else
     {
@@ -356,10 +393,11 @@ scheduler(void)
           if((p = ready_q.proc[i]))
             {
               struct proc *temp = p->next;
+              if(temp)
+                temp->prev = 0;
               p->next = 0;
               ready_q.proc[i] = temp;
-
-
+              
               //cprintf("process found with pid:%d\n", p->pid);
 
               proc = p;

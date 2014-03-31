@@ -116,6 +116,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int		setpriority_pid(int, int); // set priority w/pid definition
+int		setpriority_proc(struct proc*, int); // set priority w/proc definition
 
 // swtch.S
 void            swtch(struct context**, struct context*);
