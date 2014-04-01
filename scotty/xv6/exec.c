@@ -18,10 +18,10 @@ exec(char *path, char **argv)
   struct inode *ip;
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
-  cprintf("here\n");
+  //cprintf("here\n");
   if((ip = namei(path)) == 0)
     return -1;
-  cprintf("here2\n");
+  //cprintf("here2\n");
   ilock(ip);
   pgdir = 0;
 
