@@ -92,7 +92,7 @@ setpriority_pid(int pid, int priority)
   // check for valid priority rank
   if (priority < 0 || priority > 31)
      return -1;
-
+  // NEED LOCK BEFORE ITERATING OVER TABLE LIST
   // find process with matching pid
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       if (pid == p->pid)
@@ -139,6 +139,8 @@ getpriority(int priority)
 
   if (p->next != 0) // set next process to be head
       p_queue.ready[priority] = head->next;
+  else
+      p_queue.ready[priority] = 0;
 
   return p;
   
@@ -359,6 +361,7 @@ scheduler(void)
       proc = 0;
     }*/
 
+    // find the highest priority
     p = getpriority(p->priority);
     proc = p;
     switchuvm(p);
