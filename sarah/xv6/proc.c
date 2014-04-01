@@ -29,8 +29,8 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  // initlock(&ready_queue.lock, "ready");
-  int i;
+  // initlock(&ready_queue.lock, "ready"); 
+ int i;
   for(i = 0; i < 32; i ++)
     {
       ready_queue.ready[i] = 0;
@@ -48,6 +48,7 @@ allocproc(void)
   struct proc *p;
   char *sp;
 
+  //  cprintf("acquiring lock in allocproc\n");
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
@@ -111,7 +112,8 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  p->priority = 0;
+  p->priority = 15;
+  //  cprintf("acquire lock in userinit\n");
   acquire(&ptable.lock);
   add_to_end(p->priority, p);
   release(&ptable.lock);
@@ -174,6 +176,7 @@ fork(void)
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   np->priority = proc->priority; // just copy parent priority
+  // cprintf("acquire lock in fork\n");
   acquire(&ptable.lock);
   add_to_end(np->priority, np); // add to ready queue
   release(&ptable.lock);
@@ -212,26 +215,22 @@ void add_to_end(uint priority, struct proc * p)
 
 void remove_from_ready(uint priority, struct proc * p)
 {
-  struct proc * prev;
-  struct proc * next;
   // ptable lock must be held already
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
 
   if(p->next == 0)
     {
-      prev = p->prev;
-      prev->next = 0;
-      return;
+      ready_queue.ready[priority] = 0;
     }
   else
     {
-      next = p->next;
-      prev = p->prev;
-      next->prev = prev;;
-      prev->next = next;
-      return;
+      ready_queue.ready[priority] = p->next;
+      p->next->prev = 0;
+    
     }
+  p->next = 0;
+  p->prev = 0;
   
 }
 
@@ -258,6 +257,7 @@ exit(void)
   iput(proc->cwd);
   proc->cwd = 0;
 
+  //  cprintf("acquire lock in exit\n");
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -286,6 +286,7 @@ wait(void)
   struct proc *p;
   int havekids, pid;
 
+  // cprintf("acquire lock in wait\n");
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for zombie children.
@@ -332,6 +333,7 @@ wait(void)
 void
 scheduler(void)
 {
+  // cprintf("in scheduler\n");
   struct proc *p;
   int i;
   for(;;){
@@ -340,30 +342,22 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     
+    // cprintf("acquire lock in scheduler\n");
     acquire(&ptable.lock);
-    /*
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-    */
-    procdump();
-	// acquire(&ptable.lock);
+
     for(i = 0; i < PRIORITIES; i ++)
       {
 	p = ready_queue.ready[i];
 	if(p == 0)
 	  continue;
-	while(p->next != 0)
-	  {
-	    p = p->next;
-	  }
-	break;
+	else
+	  break;
       }
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-    if(p == 0)
-      panic("no process to run");
+    //  if(p == 0)
+    //  panic("no process to run");
 
       proc = p;
       switchuvm(p);
@@ -374,11 +368,10 @@ scheduler(void)
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
-      proc = 0;
-    }
-  release(&ptable.lock);
-  // release(&ptable.lock);
-
+      proc = p = 0;
+      release(&ptable.lock);
+      
+  }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -387,7 +380,7 @@ void
 sched(void)
 {
   int intena;
-
+  // cprintf("in sched\n");
   if(!holding(&ptable.lock))//&ready_queue.lock))//(&ptable.lock))
     panic("sched ptable.lock");
   if(cpu->ncli != 1)
@@ -405,10 +398,13 @@ sched(void)
 void
 yield(void)
 {
+  // cprintf("acquiring in yield\n");
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
   add_to_end(proc->priority, proc);
+  // cprintf("yielding\n");
   sched();
+  // cprintf("back from yield\n");
   release(&ptable.lock);
 }
 
@@ -437,7 +433,6 @@ forkret(void)
 void
 sleep(void *chan, struct spinlock *lk)
 {
-  enum procstate prev;
   if(proc == 0)
     panic("sleep");
 
@@ -451,16 +446,14 @@ sleep(void *chan, struct spinlock *lk)
   // (wakeup runs with ptable.lock locked),
   // so it's okay to release lk.
   if(lk != &ptable.lock){  //DOC: sleeplock0
+    // cprintf("acquiring lock in sleep\n");
     acquire(&ptable.lock);  //DOC: sleeplock1
     release(lk);
   }
 
   // Go to sleep.
   proc->chan = chan;
-  prev = proc->state;
   proc->state = SLEEPING;
-  if(prev == RUNNABLE) // not sure this will happen, it should be running? so already not on ready queue, but just in case
-    remove_from_ready(proc->priority, proc);
   sched();
 
   // Tidy up.
@@ -469,6 +462,7 @@ sleep(void *chan, struct spinlock *lk)
   // Reacquire original lock.
   if(lk != &ptable.lock){  //DOC: sleeplock2
     release(&ptable.lock);
+    //  cprintf("acquiring lk in sleep\n");
     acquire(lk);
   }
 }
@@ -493,6 +487,7 @@ wakeup1(void *chan)
 void
 wakeup(void *chan)
 {
+  // cprintf("acquring lock in wakeup\n");
   acquire(&ptable.lock);
   wakeup1(chan);
   release(&ptable.lock);
@@ -506,6 +501,7 @@ kill(int pid)
 {
   struct proc *p;
 
+  // cprintf("acquire lock in kill\n");
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
