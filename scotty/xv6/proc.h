@@ -3,7 +3,7 @@
 // Segments in proc->gdt.
 #define NSEGS     7
 
-struct {
+volatile struct {
   struct spinlock lock;
   struct proc *proc[32];
 } readyQ;

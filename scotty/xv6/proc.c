@@ -38,12 +38,22 @@ pinit(void)
 
 void rQinit(void){
   int i;
-  initlock(&readyQ.lock, "readyQ");
+  // initlock(&readyQ.lock, "readyQ");
   for(i=0;i<32;i++){
     readyQ.proc[i] = 0;
   }
 }
 
+/*CONTRACT REQUIRES PTABLE LOCK ALREADY HELD*/
+int gethighestpriority(){
+  int i;
+  for(i=0;i<32;i++){
+    if(readyQ.proc[i] != 0){
+      return i;
+    }
+  }
+  return 32;
+}
 
 int setpriority(int pid, int priority)
 {
@@ -51,17 +61,22 @@ int setpriority(int pid, int priority)
   struct proc *p;
   struct proc *temp;
 
+  
   if(priority > 31 || priority < 0)
     return -1;
+  acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       if(p->pid == pid){
 	  prev_pri = p->priority;
           p->priority = priority;
+
 	  if(p->state == RUNNABLE){
 	    assert(readyQ.proc[prev_pri] != 0);
 	    temp = readyQ.proc[prev_pri];
-	    while(temp->next != 0 && temp != p){
+	    cprintf("prev priority is %d\n",prev_pri);
+	    cprintf("temp is %p\n and p is %p\n",temp,p);
+	    while(temp != p && temp->next != 0){
 	      temp = temp->next;
 	    }
 	    assert(temp==p);
@@ -81,14 +96,34 @@ int setpriority(int pid, int priority)
 	      temp->prev = 0;
 	    }
 	    //I think thats all the cases?
-	    ready(temp);
+	    ready1(temp);
 	  }
 	  if(p->state == RUNNING){
-	    //determine if we need to evict process off cpu
+	    cprintf("proc is currently running\n");
+	    //Two cases
+	    //Case one, Priority was increased (more cpu time) //do nothing, we're already running
+	    
+	    //Case two, we setpri on ourselves and we changed priority was lowered and there is a proc with higher priority
+	    if(p->priority > gethighestpriority()){
+	      //I think I should yield to get THIS proc back on ready?
+	      //sched();
+	      release(&ptable.lock);
+	      yield();
+	      acquire(&ptable.lock);
+	    }
 	  }
+	  //Okay, we changed the priority of ANOTHER process. Now we need to see if
+	  //the priority we changed to is less (more cpu time) than what we are.
+	  else if(proc->priority > priority){
+	    release(&ptable.lock);
+	    yield();
+	    acquire(&ptable.lock);
+	  }
+	  release(&ptable.lock);
           return 1;
         }
     }
+  release(&ptable.lock);
   return -1;
 }
 
@@ -105,18 +140,18 @@ int ready1(struct proc* process){
 
   //  cprintf("in ready with process %d, and priority %d pid of %d\n",process,process->priority, process->pid);
  
-  struct proc *proc;
+  struct proc *proc_;
 
   //ready to place on table
   if(!process){
     return -1;
   }
-  if((proc = readyQ.proc[process->priority])){
-    while(proc->next){
-      proc = proc->next;
+  if((proc_ = readyQ.proc[process->priority])){
+    while(proc_->next){
+      proc_ = proc_->next;
     }
-    proc->next = process;
-    process->prev = proc;
+    proc_->next = process;
+    process->prev = proc_;
     process->next = 0;
   }
   else{
@@ -136,7 +171,7 @@ int ready1(struct proc* process){
 static struct proc*
 allocproc(void)
 {
-  cprintf("in allocproc\n");
+  //cprintf("in allocproc\n");
   struct proc *p;
   char *sp;
 
@@ -183,7 +218,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  cprintf("in user init");
+  //cprintf("in user init");
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -207,7 +242,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  cprintf("userinit setting on ready\n");
+  //cprintf("userinit setting on ready\n");
   ready(p);
 }
 
@@ -239,7 +274,7 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-  cprintf("in fork\n");
+  //cprintf("in fork\n");
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -265,6 +300,7 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
+  np->priority = proc->priority;
   ready(np);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
@@ -392,6 +428,7 @@ scheduler(void)
 	proc=p;
 	switchuvm(p);
 	p->state = RUNNING;
+	//	cprintf("Dispatching priority %d\n",p->priority);
 	swtch(&cpu->scheduler, proc->context);
 	switchkvm();
 	proc=p=0;
@@ -503,10 +540,10 @@ sleep(void *chan, struct spinlock *lk)
   proc->chan = chan;
   proc->state = SLEEPING;
   sched();
-
+  
   // Tidy up.
   proc->chan = 0;
-
+  //ready1(proc);
   // Reacquire original lock.
   if(lk != &ptable.lock){  //DOC: sleeplock2
     release(&ptable.lock);
