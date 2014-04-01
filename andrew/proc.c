@@ -92,7 +92,9 @@ setpriority_pid(int pid, int priority)
   // check for valid priority rank
   if (priority < 0 || priority > 31)
      return -1;
-  // NEED LOCK BEFORE ITERATING OVER TABLE LIST
+  
+  
+
   // find process with matching pid
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       if (pid == p->pid)
@@ -361,8 +363,21 @@ scheduler(void)
       proc = 0;
     }*/
 
-    // find the highest priority
-    p = getpriority(p->priority);
+    // find the highest priority process available.
+    int i = 0;
+    while (p_queue.ready[i] != 0) {
+	if (i > 31)
+	   break;
+	 
+        i++;
+    }
+    
+    if (i > 31) {  // no process found, release lock and let another core try.
+       release(&ptable.lock);
+       continue;
+    }
+	
+    p = getpriority(i);
     proc = p;
     switchuvm(p);
     p->state = RUNNING;
