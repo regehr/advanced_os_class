@@ -92,6 +92,8 @@ setpriority_pid(int pid, int priority)
   // check for valid priority rank
   if (priority < 0 || priority > 31)
      return -1;
+  
+  
 
   // find process with matching pid
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
@@ -139,6 +141,8 @@ getpriority(int priority)
 
   if (p->next != 0) // set next process to be head
       p_queue.ready[priority] = head->next;
+  else
+      p_queue.ready[priority] = 0;
 
   return p;
   
@@ -359,7 +363,21 @@ scheduler(void)
       proc = 0;
     }*/
 
-    p = getpriority(p->priority);
+    // find the highest priority process available.
+    int i = 0;
+    while (p_queue.ready[i] != 0) {
+	if (i > 31)
+	   break;
+	 
+        i++;
+    }
+    
+    if (i > 31) {  // no process found, release lock and let another core try.
+       release(&ptable.lock);
+       continue;
+    }
+	
+    p = getpriority(i);
     proc = p;
     switchuvm(p);
     p->state = RUNNING;
