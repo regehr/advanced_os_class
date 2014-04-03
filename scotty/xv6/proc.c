@@ -59,7 +59,7 @@ int setpriority(int pid, int priority)
 {
   int prev_pri = 31;
   struct proc *p;
-  struct proc *temp;
+  
 
   
   if(priority > 31 || priority < 0)
@@ -72,39 +72,34 @@ int setpriority(int pid, int priority)
           p->priority = priority;
 
 	  if(p->state == RUNNABLE){
-	    assert(readyQ.proc[prev_pri] != 0);
-	    temp = readyQ.proc[prev_pri];
-	    cprintf("prev priority is %d\n",prev_pri);
-	    cprintf("temp is %p\n and p is %p\n",temp,p);
-	    while(temp != p && temp->next != 0){
-	      temp = temp->next;
+	    if(p->next == 0 && p->prev==0){
+	      readyQ.proc[prev_pri]=0;
 	    }
-	    assert(temp==p);
-	    //we now hold p -- Perhaps we dont need to iterate through the readyq?
-	    //if temp was the only process on the readyQ for that pri
-	    if(temp->next == 0 && temp->prev==0){
-	      readyQ.proc[prev_pri] = 0;
+	    else if(p->next == 0 && p->prev != 0){
+	      //last of the list
+	      p->prev->next = 0;
+	      p->prev = 0;
 	    }
-	    //we were the head of the list
-	    else if(temp->next !=0 && temp->prev == 0){
-	      readyQ.proc[prev_pri] = temp->next;
-	      temp->next =0;
+	    else if(p->next !=0 && p->prev != 0){
+	      p->prev->next = p->next;
+	      p->next->prev = p->prev;
+	      p->next = 0;
+	      p->prev = 0;
 	    }
-	    //we were the last on the list
-	    else if(temp->next == 0 && temp->prev != 0){
-	      temp->prev->next = 0;
-	      temp->prev = 0;
+	    else {
+	      assert(1==2);
 	    }
 	    //I think thats all the cases?
-	    ready1(temp);
+	    ready1(p);
 	  }
-	  if(p->state == RUNNING){
-	    cprintf("proc is currently running\n");
+	  else if(p->state == RUNNING){
+	    //cprintf("proc is currently running\n");
 	    //Two cases
 	    //Case one, Priority was increased (more cpu time) //do nothing, we're already running
 	    
 	    //Case two, we setpri on ourselves and we changed priority was lowered and there is a proc with higher priority
 	    if(p->priority > gethighestpriority()){
+	      
 	      //I think I should yield to get THIS proc back on ready?
 	      //sched();
 	      release(&ptable.lock);
@@ -114,11 +109,13 @@ int setpriority(int pid, int priority)
 	  }
 	  //Okay, we changed the priority of ANOTHER process. Now we need to see if
 	  //the priority we changed to is less (more cpu time) than what we are.
-	  else if(proc->priority > priority){
+	  if(proc->priority > priority){
+	    cprintf("Proc priority > priority\n");
 	    release(&ptable.lock);
 	    yield();
 	    acquire(&ptable.lock);
 	  }
+	  //cprintf("Releasing and returning in set priority\n");
 	  release(&ptable.lock);
           return 1;
         }
@@ -140,25 +137,39 @@ int ready1(struct proc* process){
 
   //  cprintf("in ready with process %d, and priority %d pid of %d\n",process,process->priority, process->pid);
  
-  struct proc *proc_;
+ struct proc *proc_;
 
   //ready to place on table
   if(!process){
     return -1;
   }
-  if((proc_ = readyQ.proc[process->priority])){
-    while(proc_->next){
-      proc_ = proc_->next;
+  if((proc_ = readyQ.proc[process->priority])!=0){
+   
+    if(proc_->prev == 0){
+      proc_->prev = process;
+      proc_->next = process;
+      process->prev=proc_;
+      process->next=0;
     }
-    proc_->next = process;
-    process->prev = proc_;
-    process->next = 0;
+    else{
+      process->prev = proc_->prev;
+      proc_->prev->next = process;
+      proc_->prev = process;
+      process->next = 0;
+    }
   }
   else{
     readyQ.proc[process->priority] = process;
     process->next = 0;
     process->prev = 0;
   }
+  /*  proc_ = readyQ.proc[process->priority];
+  cprintf("Priority is %d\n",process->priority);
+  cprintf("list is %d \n",proc_->pid);
+  while(proc_->next != 0){
+    proc_ = proc_->next;
+    cprintf("list is %d \n",proc_->pid);
+    }*/
   return 1;
 }
 
@@ -419,7 +430,13 @@ scheduler(void)
 	}
 	else{
 	  readyQ.proc[i] = p->next;
-	  p->next->prev = 0;
+	  if(p->next != p->prev){
+	    p->next->prev = p->prev;  
+	  }
+	  else{
+	    p->next->prev = 0;
+	    p->next->next = 0;
+	  }
 	}
 	p->next = 0;
 	p->prev = 0;
