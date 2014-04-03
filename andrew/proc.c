@@ -93,7 +93,7 @@ setpriority_pid(int pid, int priority)
   if (priority < 0 || priority > 31)
      return -1;
   
-  
+  acquire(&ptable.lock);
 
   // find process with matching pid
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
@@ -101,13 +101,16 @@ setpriority_pid(int pid, int priority)
 	 return setpriority_proc(p, priority);      
   }
 
+  release(&ptable.lock);
+
   return -1; // pid does not exist
 }
 
 int
 setpriority_proc(struct proc* p, int priority)
 {
-  acquire(&ptable.lock);
+  if (!holding(&ptable.lock))
+     panic("setpriority_proc - no lock acquired!");
   
   p->priority = priority;
 
@@ -120,8 +123,6 @@ setpriority_proc(struct proc* p, int priority)
   }
 
   p->next = 0;
-
-  release(&ptable.lock);
 
   return 0; // pid found and priority set
 
@@ -235,7 +236,9 @@ fork(void) // give priority of parent process
  
   pid = np->pid;
   np->state = RUNNABLE;
+  acquire(&ptable.lock);
   setpriority_pid(pid, proc->priority);
+  release(&ptable.lock);
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
