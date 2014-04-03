@@ -73,7 +73,7 @@ struct proc {
   char name[16];               // Process name (debugging)
   uint priority;
   struct proc * next;
-  //  struct proc * prev;
+  struct proc * prev;
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -84,3 +84,4 @@ struct proc {
 
 void add_to_ready(struct proc * p);
 void remove_from_ready(struct proc * p);
+int setpriority(uint pid, uint priority);

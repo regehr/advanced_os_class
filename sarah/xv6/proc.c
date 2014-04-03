@@ -12,6 +12,8 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+
+//uint current_priority;
 struct proc * ready[PRIORITIES];
 
 static struct proc *initproc;
@@ -26,6 +28,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  //current_priority = 0;
   int i;
   for(i = 0; i < PRIORITIES; i ++)
     {
@@ -326,6 +329,11 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       proc = p = 0;
+      /*
+      if(current_priority == 31)
+	current_priority = 0;
+      else
+      current_priority = i + 1; */
     }
     release(&ptable.lock);
 
@@ -335,12 +343,26 @@ scheduler(void)
 void remove_from_ready(struct proc * p)
 {
   uint priority = p->priority;
-  if(p->next == 0)
-    ready[priority] = 0;
+  if(p->prev == 0) // must be first
+    {
+      if(p->next == 0)
+	ready[priority] = 0;
+      else
+	{
+	  ready[priority] = p->next;
+	  p->next->prev = 0;
+	  p->next = 0; // not sure why
+	}
+    }
   else
     {
-      ready[priority] = p->next;
+      struct proc * prev = p->prev;
+      struct proc * next = p->next;
+
+      prev->next = next;
+      next->prev = prev;
       p->next = 0;
+      p->prev = 0;
     }
 }
 
@@ -520,4 +542,40 @@ procdump(void)
   }
 }
 
+int setpriority(uint pid, uint priority)
+{
+  struct proc *p;
+  uint prev_priority = 31;
 
+  if(priority > 31)
+    return -1;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p > &ptable.proc[NPROC]; p++)
+    {
+      if(p->pid == pid)
+	{
+	  prev_priority = p->priority;
+	  //  p->priority = priority;
+	  
+	  if(p->state == RUNNABLE)
+	    {
+	      if(ready[prev_priority] == 0)
+		panic("nt on ready queue\n");
+	      //  assert(ready[prev_priority] != 0);
+	      remove_from_ready(p);
+	      p->priority = priority;
+	      
+	      add_to_ready(p);
+	    }
+	  else
+	    {
+	      p->priority = priority;
+	    }
+	  release(&ptable.lock);
+	  return 0;
+	}
+    }
+  release(&ptable.lock);
+  return -1; // didnt find it, i guess that is an error
+}
