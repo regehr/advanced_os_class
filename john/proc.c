@@ -100,6 +100,59 @@ found:
 }
 
 
+void add_proc(struct proc *p)
+{
+  struct proc *current_process; 
+  if((current_process = ready_q.proc[p->priority]))
+    {
+      while(current_process->next)
+        {
+          current_process = current_process->next;
+        }
+      current_process->next = p; 
+      p->prev = current_process; 
+    }
+  else
+    {
+      ready_q.proc[p->priority] = p;
+      p->prev = 0; //this is not needed but added just incase I'm bad at coding
+      p->next = 0;
+    }
+}
+
+void remove_proc(struct proc *p )
+{
+  struct proc *current_process; 
+  //if it doesn't have a prev it's at the head of the list
+  //remove it and set the next to head of list. 
+  if(!p->prev)
+    {
+      if((current_process = p->next))
+        {
+          ready_q.proc[p->priority] = current_process;
+          p->next = 0;
+          current_process->prev = 0; 
+        }
+      else
+        {
+          ready_q.proc[p->priority] = 0;
+        }
+    }
+  else
+    {//we know there is something before us
+      if(p->next)
+        {
+          p->next->prev = p->prev;
+          p->prev->next = p->next; 
+        }
+      else
+        {
+          p->prev->next = 0;
+        }
+    }
+  p->prev = 0;
+  p->next = 0;
+}
 int setpriority(int pid, int priority)
 {
   struct proc *p;
@@ -111,38 +164,14 @@ int setpriority(int pid, int priority)
     {
       if(p->pid == pid)
         {
-          p->priority = priority;
+         
           //remove and put it back. 
           if(p->state == RUNNABLE)
             {
               //if there is a next set prev to next
-              if(p->next)
-                {
-                  p->prev->next = p->next;
-                  p->next->prev = p->prev;
-                }
-              else //if no next just get rid of this off list
-                {
-                  p->prev->next = 0; 
-                }
-              //reset ourself. 
-               p->next = 0;
-               p->prev = 0; 
-               //find the new place to put it. 
-              struct proc *temp;
-
-              //now put in on the queue. 
-              if((temp = ready_q.proc[p->priority]))
-                {
-                  while(temp->next)
-                    temp = temp->next;
-                  temp->next = p;
-                  p->prev = temp; 
-                }
-              else
-                {
-                  ready_q.proc[p->priority] = p; 
-                }
+              remove_proc(p);
+              p->priority = priority; // have to set prioryt after add so linked list manipulation works
+              add_proc(p);
             }
           release(&ptable.lock);
           return 1;
@@ -154,25 +183,11 @@ int setpriority(int pid, int priority)
 
 int ready1(struct proc * process)
 {
-  struct proc *p;
   if(!process)
     return -1;
   if(process->priority > NPRIORITYS || process->priority < 0)
     return -1;
-  if((p = ready_q.proc[process->priority]))
-    {
-      while(p->next)
-        {
-          p = p->next;
-        }
-      p->next = process;
-      process->prev = p; 
-    }
-  else
-    {
-      ready_q.proc[process->priority] = process;
-    }
-  //cprintf("pnt: %d, prio: %d\n", process,  process->priority );
+  add_proc(process);
   return 1;
 
 }
@@ -393,12 +408,8 @@ scheduler(void)
         {
           if((p = ready_q.proc[i]))
             {
-              struct proc *temp = p->next;
-              if(temp)
-                temp->prev = 0;
-              p->next = 0;
-              ready_q.proc[i] = temp;
-              
+              remove_proc(p);
+             
               //cprintf("process found with pid:%d\n", p->pid);
 
               proc = p;
