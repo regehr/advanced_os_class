@@ -92,19 +92,26 @@ change_prio(uint pid, int new_prio)
     if (p == NULL)
         return -1;
 
+    // Assign our new priority:
+    int old_prio = p->priority;
+    p->priority = new_prio;
+
     // If we did find one, and it's in the ready queue, move it:
     if (p->state == RUNNABLE)
     {
-        struct proc* cur = ptable.first[p->priority];
-        while (cur->next != p)
-            cur = cur->next;
-        cur->next = p->next;
+        struct proc* cur = ptable.first[old_prio];
+        // Fukkin linked lists: in case p is the root node, just clear that:
+        if (cur == p)
+            ptable.first[old_prio] = p->next;
+        else
+        {
+            while (cur->next != p)
+                cur = cur->next;
+            cur->next = p->next;
+        }
         p->next = NULL;
         rdy_enq(p);
     }
-
-    // Assign our new priority:
-    p->priority = new_prio;
 
     return 0;
 }
