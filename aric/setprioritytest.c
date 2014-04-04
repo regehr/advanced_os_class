@@ -8,6 +8,7 @@
 
 int main(void){
 
+  int counter = 1;
   int pid[5];
   int i =0;
   int temp_pid =0;
@@ -20,12 +21,13 @@ int main(void){
     pid[i] = temp_pid;
     printf(1,"spawned child %d\n",temp_pid);
   }
-  setpriority(getpid(),0);
+  //setpriority(getpid(),0);
   goto parent;
   
   child:
   //INB4 everyone bitches about sleep. 
-  sleep(1000);
+  sleep(5);
+  while(counter++ < 10000);
   printf(1,"done with child pid %d\n",getpid());
   exit();
  

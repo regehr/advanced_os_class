@@ -25,6 +25,7 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+static void yield1(void);
 
 // Adds the provided process to the ready queue, and sets state to runnable.
 void
@@ -111,6 +112,18 @@ change_prio(uint pid, int new_prio)
         }
         p->next = NULL;
         rdy_enq(p);
+    }
+
+    // If our change causes the current running process to have lower priority
+    // than something else in the queue, yield:
+    int cur_prio;
+    for (cur_prio = 0; cur_prio < NPRIO; cur_prio++)
+        if (ptable.first[cur_prio] != NULL)
+            break;
+    if (cur_prio < proc->priority)
+    {
+        cprintf("YO\n");
+        yield1();
     }
 
     return 0;
@@ -471,6 +484,16 @@ yield(void)
   rdy_enq(proc);
   sched();
   release(&ptable.lock);
+}
+
+// Give up the CPU for one scheduling round.
+// This one should only be called if you already have the lock
+void
+yield1(void)
+{
+  //proc->state = RUNNABLE;
+  rdy_enq(proc);
+  sched();
 }
 
 // A fork child's very first scheduling by scheduler()
